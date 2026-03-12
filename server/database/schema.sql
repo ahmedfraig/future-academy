@@ -1,5 +1,5 @@
 -- ============================================================
--- Future Academy - Nursery & Daycare Management System
+-- Royal Kids Academy - Nursery & Daycare Management System
 -- PostgreSQL Schema (Supabase Compatible)
 -- ============================================================
 

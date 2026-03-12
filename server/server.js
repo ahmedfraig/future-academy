@@ -35,7 +35,7 @@ app.use(express.json());
 app.get('/api/health', async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT NOW() AS time');
-    res.json({ status: 'ok', message: 'Future Academy API تعمل بشكل صحيح 🌸', dbTime: rows[0].time });
+    res.json({ status: 'ok', message: 'Royal Kids Academy API تعمل بشكل صحيح 🌸', dbTime: rows[0].time });
   } catch (err) {
     res.status(503).json({ status: 'error', message: 'Database connection failed', error: err.message });
   }
@@ -69,7 +69,7 @@ async function startServer() {
   }
 
   app.listen(PORT, () => {
-    console.log(`\n🌸 Future Academy - Backend API`);
+    console.log(`\n🌸 Royal Kids Academy - Backend API`);
     console.log(`✅ Server running on http://localhost:${PORT}`);
     console.log(`\n📋 Demo Credentials:`);
     console.log(`   Manager  → manager@rawdah.sa  / manager123`);

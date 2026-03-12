@@ -1,10 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Users, School, GraduationCap, TrendingUp, AlertCircle, Activity } from 'lucide-react';
-import { students, classes, teachers, activityLog } from '../../data/dummyData';
+import api from '../../services/api';
 
-// =============================================
-// KPI STAT CARD
-// =============================================
 function StatCard({ icon, label, value, sub, gradient, emoji }) {
   return (
     <div className={`rounded-3xl p-5 text-white shadow-lg ${gradient} relative overflow-hidden`}>
@@ -21,14 +18,11 @@ function StatCard({ icon, label, value, sub, gradient, emoji }) {
   );
 }
 
-// =============================================
-// CAPACITY BAR
-// =============================================
 function ClassCapacityBar({ cls }) {
-  const count = cls.studentIds.length;
-  const pct = Math.round((count / cls.capacity) * 100);
-  const colorMap = { blue: 'bg-blue-500', green: 'bg-emerald-500', purple: 'bg-purple-500', orange: 'bg-orange-500' };
-  const bgMap = { blue: 'bg-blue-50', green: 'bg-emerald-50', purple: 'bg-purple-50', orange: 'bg-orange-50' };
+  const count = parseInt(cls.student_count) || 0;
+  const pct   = Math.round((count / cls.capacity) * 100);
+  const colorMap = { blue:'bg-blue-500', green:'bg-emerald-500', purple:'bg-purple-500', orange:'bg-orange-500', pink:'bg-pink-500', teal:'bg-teal-500' };
+  const bgMap    = { blue:'bg-blue-50', green:'bg-emerald-50', purple:'bg-purple-50', orange:'bg-orange-50', pink:'bg-pink-50', teal:'bg-teal-50' };
   return (
     <div className={`rounded-2xl p-4 ${bgMap[cls.color] || 'bg-gray-50'}`}>
       <div className="flex items-center justify-between mb-2">
@@ -36,24 +30,46 @@ function ClassCapacityBar({ cls }) {
         <span className="text-xs text-gray-500 font-medium">{count}/{cls.capacity}</span>
       </div>
       <div className="h-2 bg-white rounded-full overflow-hidden">
-        <div
-          className={`h-full rounded-full ${colorMap[cls.color] || 'bg-violet-500'} transition-all duration-700`}
-          style={{ width: `${pct}%` }}
-        />
+        <div className={`h-full rounded-full ${colorMap[cls.color] || 'bg-violet-500'} transition-all duration-700`} style={{ width: `${Math.min(pct, 100)}%` }} />
       </div>
       <p className="text-xs text-gray-400 mt-1">{pct}% مشغول</p>
     </div>
   );
 }
 
-// =============================================
-// OVERVIEW PAGE
-// =============================================
 export default function OverviewPage() {
-  const presentCount  = students.filter((s) => s.present).length;
-  const absentStudents = students.filter((s) => !s.present);
-  const totalCap      = classes.reduce((a, c) => a + c.capacity, 0);
-  const attendancePct = Math.round((presentCount / students.length) * 100);
+  const [data, setData]     = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.get('/manager/overview')
+      .then((res) => setData(res.data))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="text-center">
+          <div className="text-4xl mb-3 animate-bounce">⏳</div>
+          <p className="text-gray-400 text-sm font-medium">جاري تحميل لوحة المعلومات...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <div className="text-center py-20 text-gray-400">
+        <p className="text-3xl mb-2">⚠️</p>
+        <p className="text-sm">فشل تحميل البيانات</p>
+      </div>
+    );
+  }
+
+  const { totalStudents, totalClasses, activeTeachers, attendancePct, absentStudents, activityLog, classes } = data;
+  const presentCount = Math.round((attendancePct / 100) * totalStudents);
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
@@ -67,7 +83,7 @@ export default function OverviewPage() {
         <StatCard
           icon={<Users size={22} className="text-white" />}
           label="إجمالي الطلاب"
-          value={students.length}
+          value={totalStudents}
           sub={`${presentCount} حاضر اليوم`}
           gradient="bg-gradient-to-br from-blue-500 to-blue-600"
           emoji="👦"
@@ -75,16 +91,16 @@ export default function OverviewPage() {
         <StatCard
           icon={<School size={22} className="text-white" />}
           label="عدد الفصول"
-          value={classes.length}
-          sub={`سعة ${totalCap} طالب`}
+          value={totalClasses}
+          sub={`${classes.reduce((a, c) => a + c.capacity, 0)} طالب سعة إجمالية`}
           gradient="bg-gradient-to-br from-emerald-500 to-teal-600"
           emoji="🏫"
         />
         <StatCard
           icon={<GraduationCap size={22} className="text-white" />}
           label="المعلمات"
-          value={teachers.filter((t) => t.active).length}
-          sub={`${teachers.filter((t) => !t.active).length} غير نشطة`}
+          value={activeTeachers}
+          sub="معلمة نشطة"
           gradient="bg-gradient-to-br from-pink-500 to-rose-600"
           emoji="👩‍🏫"
         />
@@ -116,7 +132,7 @@ export default function OverviewPage() {
                   <span className="text-xl">{s.avatar}</span>
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-sm text-gray-700 truncate">{s.name}</p>
-                    <p className="text-xs text-gray-400">{s.classId} • {s.parentName}</p>
+                    <p className="text-xs text-gray-400">{s.class_id} • {s.parent_name}</p>
                   </div>
                   <span className="text-xs bg-red-200 text-red-700 px-2 py-0.5 rounded-full font-bold flex-shrink-0">غائب</span>
                 </div>
@@ -148,13 +164,16 @@ export default function OverviewPage() {
           <h2 className="font-bold text-gray-800 text-sm">آخر الأنشطة</h2>
         </div>
         <div className="flex flex-col gap-2">
+          {activityLog.length === 0 && <p className="text-sm text-gray-400 text-center py-4">لا توجد أنشطة بعد</p>}
           {activityLog.map((log) => (
             <div key={log.id} className="flex items-center gap-3 py-2.5 border-b border-gray-50 last:border-0">
               <div className="w-9 h-9 bg-gray-100 rounded-2xl flex items-center justify-center text-lg flex-shrink-0">
                 {log.icon}
               </div>
               <p className="text-sm text-gray-700 flex-1">{log.text}</p>
-              <span className="text-xs text-gray-400 flex-shrink-0 whitespace-nowrap">{log.time}</span>
+              <span className="text-xs text-gray-400 flex-shrink-0 whitespace-nowrap">
+                {new Date(log.created_at).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}
+              </span>
             </div>
           ))}
         </div>

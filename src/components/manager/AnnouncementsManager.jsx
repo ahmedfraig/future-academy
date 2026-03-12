@@ -1,51 +1,100 @@
-import React, { useState } from 'react';
-import { Plus, Pencil, Trash2, Send, Calendar } from 'lucide-react';
-import { announcements as initialAnnouncements, classes } from '../../data/dummyData';
+import React, { useState, useEffect } from 'react';
+import { Plus, Pencil, Trash2, Calendar } from 'lucide-react';
+import api from '../../services/api';
 import { ConfirmDialog, FormModal, Field, inputCls, selectCls } from './shared/SharedComponents';
 
 const colorOptions = ['blue', 'green', 'yellow', 'red', 'purple'];
 const colorLabel = { blue: 'أزرق — معلومات', green: 'أخضر — إيجابي', yellow: 'أصفر — تحذير', red: 'أحمر — عاجل', purple: 'بنفسجي — مهم' };
-const colorBg = { blue:'bg-blue-50 border-blue-200', green:'bg-emerald-50 border-emerald-200', yellow:'bg-amber-50 border-amber-200', red:'bg-red-50 border-red-200', purple:'bg-purple-50 border-purple-200' };
+const colorBg    = { blue:'bg-blue-50 border-blue-200', green:'bg-emerald-50 border-emerald-200', yellow:'bg-amber-50 border-amber-200', red:'bg-red-50 border-red-200', purple:'bg-purple-50 border-purple-200' };
 const colorTitle = { blue:'text-blue-700', green:'text-emerald-700', yellow:'text-amber-700', red:'text-red-700', purple:'text-purple-700' };
-const colorDot = { blue:'bg-blue-400', green:'bg-emerald-400', yellow:'bg-amber-400', red:'bg-red-400', purple:'bg-purple-400' };
+const colorDot   = { blue:'bg-blue-400', green:'bg-emerald-400', yellow:'bg-amber-400', red:'bg-red-400', purple:'bg-purple-400' };
 
 const emptyForm = { title: '', body: '', color: 'blue', target: 'all' };
 
 export default function AnnouncementsManager() {
-  const [announcements, setAnnouncements] = useState(initialAnnouncements);
-  const [modal, setModal]   = useState(null);
-  const [form, setForm]     = useState(emptyForm);
-  const [editId, setEditId] = useState(null);
+  const [announcements, setAnnouncements] = useState([]);
+  const [classes, setClasses]   = useState([]);
+  const [loading, setLoading]   = useState(true);
+  const [modal, setModal]       = useState(null);
+  const [form, setForm]         = useState(emptyForm);
+  const [editId, setEditId]     = useState(null);
   const [confirmId, setConfirmId] = useState(null);
-  const [toast, setToast]   = useState('');
+  const [toast, setToast]       = useState('');
+  const [saving, setSaving]     = useState(false);
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 2500); };
+
+  const fetchData = async () => {
+    try {
+      const [annRes, clsRes] = await Promise.all([
+        api.get('/manager/announcements'),
+        api.get('/manager/classes'),
+      ]);
+      setAnnouncements(annRes.data);
+      setClasses(clsRes.data);
+    } catch {
+      showToast('❌ فشل تحميل البيانات');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchData(); }, []);
 
   const handleChange = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
 
   const openAdd  = () => { setForm(emptyForm); setModal('add'); };
-  const openEdit = (a) => { setForm({ ...a }); setEditId(a.id); setModal('edit'); };
+  const openEdit = (a) => { setForm({ title: a.title, body: a.body, color: a.color, target: a.target }); setEditId(a.id); setModal('edit'); };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.title.trim() || !form.body.trim()) return;
-    const now = 'الآن';
-    if (modal === 'add') {
-      const newId = Math.max(...announcements.map((a) => a.id), 0) + 1;
-      setAnnouncements((prev) => [{ ...form, id: newId, date: now }, ...prev]);
-      showToast(`📢 تم نشر الإعلان: ${form.title}`);
-    } else {
-      setAnnouncements((prev) => prev.map((a) => (a.id === editId ? { ...a, ...form } : a)));
-      showToast(`✅ تم تعديل الإعلان`);
+    setSaving(true);
+    try {
+      if (modal === 'add') {
+        const { data } = await api.post('/manager/announcements', form);
+        setAnnouncements((prev) => [data, ...prev]);
+        showToast(`📢 تم نشر الإعلان: ${form.title}`);
+      } else {
+        const { data } = await api.put(`/manager/announcements/${editId}`, form);
+        setAnnouncements((prev) => prev.map((a) => a.id === editId ? data : a));
+        showToast(`✅ تم تعديل الإعلان`);
+      }
+      setModal(null);
+    } catch {
+      showToast('❌ حدث خطأ أثناء الحفظ');
+    } finally {
+      setSaving(false);
     }
-    setModal(null);
   };
 
-  const handleDelete = () => {
-    const title = announcements.find((a) => a.id === confirmId)?.title;
-    setAnnouncements((prev) => prev.filter((a) => a.id !== confirmId));
-    setConfirmId(null);
-    showToast(`🗑️ تم حذف الإعلان: ${title}`);
+  const handleDelete = async () => {
+    const ann = announcements.find((a) => a.id === confirmId);
+    try {
+      await api.delete(`/manager/announcements/${confirmId}`);
+      setAnnouncements((prev) => prev.filter((a) => a.id !== confirmId));
+      showToast(`🗑️ تم حذف الإعلان: ${ann?.title}`);
+    } catch {
+      showToast('❌ فشل حذف الإعلان');
+    } finally {
+      setConfirmId(null);
+    }
   };
+
+  const formatDate = (ts) => {
+    if (!ts) return '';
+    return new Date(ts).toLocaleDateString('ar-SA', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="text-center">
+          <div className="text-4xl mb-3 animate-bounce">⏳</div>
+          <p className="text-gray-400 text-sm font-medium">جاري تحميل الإعلانات...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-5 animate-fade-in">
@@ -77,7 +126,7 @@ export default function AnnouncementsManager() {
               <div className="flex items-center gap-3 mt-3">
                 <div className="flex items-center gap-1 text-xs text-gray-400">
                   <Calendar size={11} />
-                  <span>{ann.date}</span>
+                  <span>{formatDate(ann.created_at)}</span>
                 </div>
                 <div className="flex gap-1.5 mr-auto">
                   <button onClick={() => openEdit(ann)} className="px-3 py-1.5 bg-white/80 hover:bg-white border border-gray-200 text-blue-600 rounded-xl text-xs font-bold flex items-center gap-1 transition-all">
@@ -100,7 +149,7 @@ export default function AnnouncementsManager() {
       </div>
 
       {/* Add/Edit Modal */}
-      <FormModal isOpen={!!modal} title={modal === 'add' ? 'إنشاء إعلان جديد' : 'تعديل الإعلان'} icon="📢" onClose={() => setModal(null)} onSave={handleSave} saveLabel={modal === 'add' ? 'نشر الإعلان' : 'حفظ التعديل'}>
+      <FormModal isOpen={!!modal} title={modal === 'add' ? 'إنشاء إعلان جديد' : 'تعديل الإعلان'} icon="📢" onClose={() => setModal(null)} onSave={handleSave} saveLabel={saving ? '⟳ جاري النشر...' : modal === 'add' ? 'نشر الإعلان' : 'حفظ التعديل'}>
         <Field label="عنوان الإعلان">
           <input name="title" value={form.title} onChange={handleChange} placeholder="اكتب عنوان الإعلان..." className={inputCls} style={{ fontFamily: 'Cairo, sans-serif' }} />
         </Field>
@@ -127,7 +176,6 @@ export default function AnnouncementsManager() {
             </select>
           </Field>
         </div>
-        {/* Preview */}
         {form.title && (
           <div className={`rounded-2xl p-3 border ${colorBg[form.color] || colorBg.blue}`}>
             <p className="text-xs text-gray-400 mb-1">معاينة:</p>

@@ -49,7 +49,7 @@ router.post('/login', async (req, res) => {
 router.post('/register', async (req, res) => {
   const client = await db.connect();
   try {
-    const { name, email, password, role, specialization, managerCode, childName, classId } = req.body;
+    const { name, email, password, role, specialization, managerCode, childName, classId, phone } = req.body;
 
     if (!name || !email || !password || !role)
       return res.status(400).json({ error: 'جميع الحقول مطلوبة' });
@@ -73,9 +73,9 @@ router.post('/register', async (req, res) => {
     if (role === 'parent' && childName && classId) {
       const childRes = await client.query(
         `INSERT INTO students (name, avatar, gender, age, class_id, parent_name, phone, medication)
-         VALUES ($1, '👦', 'ذكر', 4, $2, $3, '', false)
+         VALUES ($1, '👦', 'ذكر', 4, $2, $3, $4, false)
          RETURNING id`,
-        [childName, classId, name]
+        [childName, classId, name, phone || '']
       );
       childId = childRes.rows[0].id;
     }

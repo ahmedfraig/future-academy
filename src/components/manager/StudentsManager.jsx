@@ -1,27 +1,47 @@
-import React, { useState } from 'react';
-import { Search, Plus, Pencil, Trash2, Filter } from 'lucide-react';
-import { students as initialStudents, classes } from '../../data/dummyData';
+import React, { useState, useEffect } from 'react';
+import { Search, Plus, Pencil, Trash2 } from 'lucide-react';
+import api from '../../services/api';
 import { ConfirmDialog, FormModal, Field, inputCls, selectCls } from './shared/SharedComponents';
 
-const emptyForm = { name: '', gender: 'ذكر', age: '', classId: 'KG1-A', parentName: '', phone: '', avatar: '👦', medication: false };
+const emptyForm = { name: '', gender: 'ذكر', age: '', classId: '', parentName: '', phone: '', avatar: '👦', medication: false };
 
 export default function StudentsManager() {
-  const [students, setStudents] = useState(initialStudents);
+  const [students, setStudents] = useState([]);
+  const [classes, setClasses]   = useState([]);
+  const [loading, setLoading]   = useState(true);
   const [search, setSearch]     = useState('');
-  const [filterClass, setFilterClass] = useState('all');
+  const [filterClass, setFilterClass]   = useState('all');
   const [filterGender, setFilterGender] = useState('all');
-  const [modal, setModal]       = useState(null); // null | 'add' | 'edit'
+  const [modal, setModal]       = useState(null);
   const [form, setForm]         = useState(emptyForm);
   const [editId, setEditId]     = useState(null);
   const [confirmId, setConfirmId] = useState(null);
   const [toast, setToast]       = useState('');
+  const [saving, setSaving]     = useState(false);
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 2500); };
 
+  const fetchData = async () => {
+    try {
+      const [stuRes, clsRes] = await Promise.all([
+        api.get('/manager/students'),
+        api.get('/manager/classes'),
+      ]);
+      setStudents(stuRes.data);
+      setClasses(clsRes.data);
+    } catch {
+      showToast('❌ فشل تحميل البيانات');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchData(); }, []);
+
   const filtered = students.filter((s) => {
-    const matchName  = s.name.includes(search) || s.parentName.includes(search);
-    const matchClass = filterClass  === 'all' || s.classId === filterClass;
-    const matchGender= filterGender === 'all' || s.gender  === filterGender;
+    const matchName   = s.name?.includes(search) || s.parent_name?.includes(search);
+    const matchClass  = filterClass  === 'all' || s.class_id === filterClass;
+    const matchGender = filterGender === 'all' || s.gender  === filterGender;
     return matchName && matchClass && matchGender;
   });
 
@@ -31,28 +51,69 @@ export default function StudentsManager() {
     if (name === 'gender') setForm((f) => ({ ...f, gender: value, avatar: value === 'ذكر' ? '👦' : '👧' }));
   };
 
-  const openAdd = () => { setForm(emptyForm); setModal('add'); };
-  const openEdit = (s) => { setForm({ ...s }); setEditId(s.id); setModal('edit'); };
+  const openAdd  = () => { setForm({ ...emptyForm, classId: classes[0]?.id || '' }); setModal('add'); };
+  const openEdit = (s) => {
+    setForm({
+      name: s.name, gender: s.gender, age: s.age, classId: s.class_id,
+      parentName: s.parent_name, phone: s.phone || '', avatar: s.avatar,
+      medication: s.medication,
+    });
+    setEditId(s.id);
+    setModal('edit');
+  };
 
-  const handleSave = () => {
-    if (!form.name.trim() || !form.parentName.trim()) return;
-    if (modal === 'add') {
-      const newId = Math.max(...students.map((s) => s.id)) + 1;
-      setStudents((prev) => [...prev, { ...form, id: newId, present: false, mood: null, note: '' }]);
-      showToast(`✅ تم إضافة الطالب: ${form.name}`);
-    } else {
-      setStudents((prev) => prev.map((s) => (s.id === editId ? { ...s, ...form } : s)));
-      showToast(`✅ تم تعديل بيانات: ${form.name}`);
+  const handleSave = async () => {
+    if (!form.name.trim()) return;
+    setSaving(true);
+    try {
+      if (modal === 'add') {
+        const { data } = await api.post('/manager/students', {
+          name: form.name, gender: form.gender, age: form.age,
+          classId: form.classId, parentName: form.parentName,
+          phone: form.phone, medication: form.medication,
+        });
+        setStudents((prev) => [...prev, data]);
+        showToast(`✅ تم إضافة الطالب: ${form.name}`);
+      } else {
+        const { data } = await api.put(`/manager/students/${editId}`, {
+          name: form.name, gender: form.gender, age: form.age,
+          classId: form.classId, parentName: form.parentName,
+          phone: form.phone, medication: form.medication,
+        });
+        setStudents((prev) => prev.map((s) => s.id === editId ? data : s));
+        showToast(`✅ تم تعديل بيانات: ${form.name}`);
+      }
+      setModal(null);
+    } catch {
+      showToast('❌ حدث خطأ أثناء الحفظ');
+    } finally {
+      setSaving(false);
     }
-    setModal(null);
   };
 
-  const handleDelete = () => {
-    const name = students.find((s) => s.id === confirmId)?.name;
-    setStudents((prev) => prev.filter((s) => s.id !== confirmId));
-    setConfirmId(null);
-    showToast(`🗑️ تم حذف الطالب: ${name}`);
+  const handleDelete = async () => {
+    const student = students.find((s) => s.id === confirmId);
+    try {
+      await api.delete(`/manager/students/${confirmId}`);
+      setStudents((prev) => prev.filter((s) => s.id !== confirmId));
+      showToast(`🗑️ تم حذف الطالب: ${student?.name}`);
+    } catch {
+      showToast('❌ فشل حذف الطالب');
+    } finally {
+      setConfirmId(null);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="text-center">
+          <div className="text-4xl mb-3 animate-bounce">⏳</div>
+          <p className="text-gray-400 text-sm font-medium">جاري تحميل بيانات الطلاب...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-5 animate-fade-in">
@@ -124,9 +185,9 @@ export default function StudentsManager() {
                   <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{s.gender}</td>
                   <td className="px-4 py-3 text-gray-600">{s.age} سنوات</td>
                   <td className="px-4 py-3">
-                    <span className="bg-blue-100 text-blue-700 text-xs font-bold px-2.5 py-1 rounded-xl">{s.classId}</span>
+                    <span className="bg-blue-100 text-blue-700 text-xs font-bold px-2.5 py-1 rounded-xl">{s.class_id}</span>
                   </td>
-                  <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{s.parentName}</td>
+                  <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{s.parent_name}</td>
                   <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap" dir="ltr">{s.phone}</td>
                   <td className="px-4 py-3">
                     {s.medication
@@ -163,7 +224,7 @@ export default function StudentsManager() {
         icon={modal === 'add' ? '➕' : '✏️'}
         onClose={() => setModal(null)}
         onSave={handleSave}
-        saveLabel={modal === 'add' ? 'إضافة' : 'حفظ التعديل'}
+        saveLabel={saving ? '⟳ جاري الحفظ...' : modal === 'add' ? 'إضافة' : 'حفظ التعديل'}
       >
         <div className="grid grid-cols-2 gap-3">
           <Field label="اسم الطالب">
@@ -180,7 +241,7 @@ export default function StudentsManager() {
           </Field>
           <Field label="الفصل">
             <select name="classId" value={form.classId} onChange={handleChange} className={selectCls} style={{ fontFamily: 'Cairo, sans-serif' }}>
-              {classes.map((c) => <option key={c.id} value={c.id}>{c.name} — {c.gradeLevel}</option>)}
+              {classes.map((c) => <option key={c.id} value={c.id}>{c.name} — {c.grade_level}</option>)}
             </select>
           </Field>
           <Field label="اسم ولي الأمر">

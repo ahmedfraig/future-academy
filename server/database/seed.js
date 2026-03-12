@@ -1,5 +1,5 @@
 /**
- * Future Academy - Database Setup & Seed Script
+ * Royal Kids Academy - Database Setup & Seed Script
  * Run once: node database/seed.js
  * - Creates all tables (runs schema.sql automatically)
  * - Populates all demo data

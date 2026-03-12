@@ -61,7 +61,7 @@ export default function LoginPage() {
         <div className="absolute bottom-0 left-0 w-96 h-96 rounded-full bg-white/10 translate-y-1/2 -translate-x-1/2" />
         <div className="relative z-10 text-center text-white">
           <div className="text-8xl mb-6 animate-bounce-gentle">🌸</div>
-          <h1 className="text-4xl font-black mb-3">Future Academy</h1>
+          <h1 className="text-4xl font-black mb-3">Royal Kids Academy</h1>
           <p className="text-lg opacity-80 mb-8">نظام إدارة الحضانه</p>
           <div className="flex flex-col gap-3 text-right">
             {[
@@ -85,7 +85,7 @@ export default function LoginPage() {
           {/* Mobile logo */}
           <div className="lg:hidden text-center mb-8">
             <div className="text-5xl mb-2">🌸</div>
-            <h1 className="text-2xl font-black text-gray-800">Future Academy</h1>
+            <h1 className="text-2xl font-black text-gray-800">Royal Kids Academy</h1>
           </div>
 
           <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8">

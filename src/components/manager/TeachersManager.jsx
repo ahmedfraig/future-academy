@@ -1,20 +1,40 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Pencil, Trash2, Phone, Mail } from 'lucide-react';
-import { teachers as initialTeachers, classes } from '../../data/dummyData';
+import api from '../../services/api';
 import { ConfirmDialog, FormModal, Field, inputCls, selectCls } from './shared/SharedComponents';
 
-const emptyForm = { name: '', phone: '', email: '', specialization: 'رياض أطفال', assignedClasses: [], avatar: '👩‍🏫', active: true };
+const emptyForm = { name: '', phone: '', email: '', specialization: 'رياض أطفال', assignedClasses: [], active: true };
 const specOptions = ['رياض أطفال', 'تربية خاصة', 'فنون وحرف', 'موسيقى', 'تربية بدنية', 'لغات'];
 
 export default function TeachersManager() {
-  const [teachers, setTeachers] = useState(initialTeachers);
+  const [teachers, setTeachers] = useState([]);
+  const [classes, setClasses]   = useState([]);
+  const [loading, setLoading]   = useState(true);
   const [modal, setModal]       = useState(null);
   const [form, setForm]         = useState(emptyForm);
   const [editId, setEditId]     = useState(null);
   const [confirmId, setConfirmId] = useState(null);
   const [toast, setToast]       = useState('');
+  const [saving, setSaving]     = useState(false);
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 2500); };
+
+  const fetchData = async () => {
+    try {
+      const [teachRes, clsRes] = await Promise.all([
+        api.get('/manager/teachers'),
+        api.get('/manager/classes'),
+      ]);
+      setTeachers(teachRes.data);
+      setClasses(clsRes.data);
+    } catch {
+      showToast('❌ فشل تحميل البيانات');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchData(); }, []);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -30,28 +50,67 @@ export default function TeachersManager() {
     }));
   };
 
-  const openAdd = () => { setForm(emptyForm); setModal('add'); };
-  const openEdit = (t) => { setForm({ ...t }); setEditId(t.id); setModal('edit'); };
+  const openAdd  = () => { setForm(emptyForm); setModal('add'); };
+  const openEdit = (t) => {
+    setForm({
+      name: t.name, phone: t.phone || '', email: t.email || '',
+      specialization: t.specialization, active: t.active,
+      assignedClasses: t.assigned_classes || [],
+    });
+    setEditId(t.id);
+    setModal('edit');
+  };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.name.trim()) return;
-    if (modal === 'add') {
-      const newId = Math.max(...teachers.map((t) => t.id)) + 1;
-      setTeachers((prev) => [...prev, { ...form, id: newId, joinDate: new Date().toISOString().split('T')[0] }]);
-      showToast(`✅ تم إضافة المعلمة: ${form.name}`);
-    } else {
-      setTeachers((prev) => prev.map((t) => (t.id === editId ? { ...t, ...form } : t)));
-      showToast(`✅ تم تعديل بيانات: ${form.name}`);
+    setSaving(true);
+    try {
+      if (modal === 'add') {
+        const { data } = await api.post('/manager/teachers', {
+          name: form.name, phone: form.phone, email: form.email,
+          specialization: form.specialization, assignedClasses: form.assignedClasses,
+        });
+        setTeachers((prev) => [...prev, data]);
+        showToast(`✅ تم إضافة المعلمة: ${form.name}`);
+      } else {
+        const { data } = await api.put(`/manager/teachers/${editId}`, {
+          name: form.name, phone: form.phone, email: form.email,
+          specialization: form.specialization, active: form.active,
+        });
+        setTeachers((prev) => prev.map((t) => t.id === editId ? data : t));
+        showToast(`✅ تم تعديل بيانات: ${form.name}`);
+      }
+      setModal(null);
+    } catch {
+      showToast('❌ حدث خطأ أثناء الحفظ');
+    } finally {
+      setSaving(false);
     }
-    setModal(null);
   };
 
-  const handleDelete = () => {
-    const name = teachers.find((t) => t.id === confirmId)?.name;
-    setTeachers((prev) => prev.filter((t) => t.id !== confirmId));
-    setConfirmId(null);
-    showToast(`🗑️ تم حذف المعلمة: ${name}`);
+  const handleDelete = async () => {
+    const teacher = teachers.find((t) => t.id === confirmId);
+    try {
+      await api.delete(`/manager/teachers/${confirmId}`);
+      setTeachers((prev) => prev.filter((t) => t.id !== confirmId));
+      showToast(`🗑️ تم حذف المعلمة: ${teacher?.name}`);
+    } catch {
+      showToast('❌ فشل حذف المعلمة');
+    } finally {
+      setConfirmId(null);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="text-center">
+          <div className="text-4xl mb-3 animate-bounce">⏳</div>
+          <p className="text-gray-400 text-sm font-medium">جاري تحميل بيانات المعلمات...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-5 animate-fade-in">
@@ -69,10 +128,9 @@ export default function TeachersManager() {
       <div className="flex flex-col gap-3">
         {teachers.map((t) => (
           <div key={t.id} className={`bg-white rounded-3xl border shadow-sm p-5 flex flex-col sm:flex-row sm:items-center gap-4 hover:shadow-md transition-shadow ${!t.active ? 'opacity-60' : 'border-gray-100'}`}>
-            {/* Avatar & Name */}
             <div className="flex items-center gap-4 flex-1 min-w-0">
               <div className="w-14 h-14 rounded-2xl bg-pink-100 flex items-center justify-center text-3xl flex-shrink-0">
-                {t.avatar}
+                {t.avatar || '👩‍🏫'}
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -89,9 +147,9 @@ export default function TeachersManager() {
 
             {/* Assigned Classes */}
             <div className="flex flex-wrap gap-1.5 flex-shrink-0">
-              {t.assignedClasses.length === 0
+              {(!t.assigned_classes || t.assigned_classes.length === 0)
                 ? <span className="text-xs text-gray-400 italic">لا يوجد فصول معينة</span>
-                : t.assignedClasses.map((cid) => (
+                : t.assigned_classes.map((cid) => (
                     <span key={cid} className="bg-violet-100 text-violet-700 text-xs font-bold px-2.5 py-1 rounded-xl">{cid}</span>
                   ))
               }
@@ -108,10 +166,16 @@ export default function TeachersManager() {
             </div>
           </div>
         ))}
+        {teachers.length === 0 && (
+          <div className="text-center py-12 text-gray-400">
+            <p className="text-3xl mb-2">👩‍🏫</p>
+            <p className="text-sm font-medium">لا توجد معلمات مسجلة بعد</p>
+          </div>
+        )}
       </div>
 
       {/* Add/Edit Modal */}
-      <FormModal isOpen={!!modal} title={modal === 'add' ? 'إضافة معلمة جديدة' : 'تعديل بيانات المعلمة'} icon="👩‍🏫" onClose={() => setModal(null)} onSave={handleSave} saveLabel={modal === 'add' ? 'إضافة' : 'حفظ'}>
+      <FormModal isOpen={!!modal} title={modal === 'add' ? 'إضافة معلمة جديدة' : 'تعديل بيانات المعلمة'} icon="👩‍🏫" onClose={() => setModal(null)} onSave={handleSave} saveLabel={saving ? '⟳ جاري الحفظ...' : modal === 'add' ? 'إضافة' : 'حفظ'}>
         <div className="grid grid-cols-2 gap-3">
           <Field label="الاسم الكامل">
             <input name="name" value={form.name} onChange={handleChange} placeholder="أ. الاسم" className={inputCls} style={{ fontFamily: 'Cairo, sans-serif' }} />
@@ -146,12 +210,14 @@ export default function TeachersManager() {
             ))}
           </div>
         </Field>
-        <Field label="">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" name="active" checked={form.active} onChange={handleChange} className="w-4 h-4 accent-violet-600" />
-            <span className="text-sm text-gray-700 font-medium">معلمة نشطة حالياً</span>
-          </label>
-        </Field>
+        {modal === 'edit' && (
+          <Field label="">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" name="active" checked={form.active} onChange={handleChange} className="w-4 h-4 accent-violet-600" />
+              <span className="text-sm text-gray-700 font-medium">معلمة نشطة حالياً</span>
+            </label>
+          </Field>
+        )}
       </FormModal>
 
       <ConfirmDialog isOpen={!!confirmId} title="حذف المعلمة" message={`هل أنت متأكد من حذف "${teachers.find((t) => t.id === confirmId)?.name}"؟`} onConfirm={handleDelete} onCancel={() => setConfirmId(null)} />

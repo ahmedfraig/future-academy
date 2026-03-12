@@ -3,7 +3,7 @@
 // =============================================
 
 export const nurseryInfo = {
-  name: "Future Academy",
+  name: "Royal Kids Academy",
   logo: "🌸",
   address: "شارع الأمير محمد، الرياض",
 };

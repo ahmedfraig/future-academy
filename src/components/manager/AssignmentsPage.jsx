@@ -1,47 +1,87 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowLeftRight, UserCheck, Users, CheckCircle } from 'lucide-react';
-import { classes as initialClasses, teachers as initialTeachers, students as allStudents } from '../../data/dummyData';
+import api from '../../services/api';
 
 export default function AssignmentsPage() {
-  const [classes, setClasses]   = useState(initialClasses);
-  const [teachers, setTeachers] = useState(initialTeachers);
+  const [classes, setClasses]   = useState([]);
+  const [teachers, setTeachers] = useState([]);
+  const [students, setStudents] = useState([]);
+  const [loading, setLoading]   = useState(true);
   const [toast, setToast]       = useState('');
 
   // Student move state
-  const [selectedStu, setSelectedStu] = useState([]); // ids
-  const [sourceClass, setSourceClass]  = useState(classes[0]?.id || '');
+  const [selectedStu, setSelectedStu] = useState([]);
+  const [sourceClass, setSourceClass]  = useState('');
   const [targetClass, setTargetClass]  = useState('');
-  const [students, setStudents]        = useState(allStudents);
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 2500); };
 
+  const fetchData = async () => {
+    try {
+      const [clsRes, teachRes, stuRes] = await Promise.all([
+        api.get('/manager/classes'),
+        api.get('/manager/teachers'),
+        api.get('/manager/students'),
+      ]);
+      setClasses(clsRes.data);
+      setTeachers(teachRes.data);
+      setStudents(stuRes.data);
+      if (clsRes.data.length > 0) setSourceClass(clsRes.data[0].id);
+    } catch {
+      showToast('❌ فشل تحميل البيانات');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchData(); }, []);
+
   // Assign teacher to class
-  const handleAssignTeacher = (classId, teacherId) => {
-    const tid = teacherId ? parseInt(teacherId) : null;
-    setClasses((prev) => prev.map((c) => c.id === classId ? { ...c, teacherId: tid } : c));
-    setTeachers((prev) => prev.map((t) => {
-      if (t.id === tid) return { ...t, assignedClasses: t.assignedClasses.includes(classId) ? t.assignedClasses : [...t.assignedClasses, classId] };
-      return { ...t, assignedClasses: t.assignedClasses.filter((x) => x !== classId) };
-    }));
-    const t = teachers.find((x) => x.id === tid);
-    showToast(t ? `✅ تم تعيين ${t.name} لفصل ${classId}` : `✅ تم إزالة المعلمة من فصل ${classId}`);
+  const handleAssignTeacher = async (classId, teacherId) => {
+    try {
+      const { data } = await api.patch(`/manager/classes/${classId}/teacher`, { teacherId: teacherId || null });
+      setClasses((prev) => prev.map((c) => c.id === classId ? { ...c, teacher_id: data.teacher_id, teacher_name: teachers.find((t) => t.id === data.teacher_id)?.name } : c));
+      // Refresh teachers to update assigned_classes arrays
+      const teachRes = await api.get('/manager/teachers');
+      setTeachers(teachRes.data);
+      const t = teachers.find((x) => x.id === parseInt(teacherId));
+      showToast(t ? `✅ تم تعيين ${t.name} لفصل ${classId}` : `✅ تم إزالة المعلمة من فصل ${classId}`);
+    } catch {
+      showToast('❌ فشل تعيين المعلمة');
+    }
   };
 
   // Move students between classes
-  const studentsInSource = students.filter((s) => s.classId === sourceClass);
+  const studentsInSource = students.filter((s) => s.class_id === sourceClass);
   const toggleStu = (id) => setSelectedStu((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
 
-  const handleMoveStudents = () => {
+  const handleMoveStudents = async () => {
     if (!targetClass || selectedStu.length === 0) return;
-    setStudents((prev) => prev.map((s) => selectedStu.includes(s.id) ? { ...s, classId: targetClass } : s));
-    setClasses((prev) => prev.map((c) => {
-      if (c.id === sourceClass) return { ...c, studentIds: c.studentIds.filter((id) => !selectedStu.includes(id)) };
-      if (c.id === targetClass) return { ...c, studentIds: [...c.studentIds, ...selectedStu] };
-      return c;
-    }));
-    showToast(`✅ تم نقل ${selectedStu.length} طلاب إلى ${targetClass}`);
-    setSelectedStu([]);
+    try {
+      await Promise.all(
+        selectedStu.map((stuId) => api.patch(`/manager/students/${stuId}/class`, { classId: targetClass }))
+      );
+      setStudents((prev) => prev.map((s) => selectedStu.includes(s.id) ? { ...s, class_id: targetClass } : s));
+      // Refresh classes to get updated student counts
+      const clsRes = await api.get('/manager/classes');
+      setClasses(clsRes.data);
+      showToast(`✅ تم نقل ${selectedStu.length} طلاب إلى ${targetClass}`);
+      setSelectedStu([]);
+    } catch {
+      showToast('❌ فشل نقل الطلاب');
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="text-center">
+          <div className="text-4xl mb-3 animate-bounce">⏳</div>
+          <p className="text-gray-400 text-sm font-medium">جاري تحميل بيانات التعيينات...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
@@ -58,22 +98,21 @@ export default function AssignmentsPage() {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           {classes.map((cls) => {
-            const current = teachers.find((t) => t.id === cls.teacherId);
+            const current = teachers.find((t) => t.id === cls.teacher_id);
             return (
               <div key={cls.id} className="bg-gray-50 rounded-2xl p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <span className="font-black text-gray-700">{cls.name}</span>
-                  <span className="text-xs text-gray-400">{cls.gradeLevel}</span>
+                  <span className="text-xs text-gray-400">{cls.grade_level}</span>
                 </div>
-                {/* Current teacher */}
                 {current && (
                   <div className="flex items-center gap-2 bg-white rounded-xl px-3 py-2 mb-2 border border-pink-100">
-                    <span className="text-lg">{current.avatar}</span>
+                    <span className="text-lg">{current.avatar || '👩‍🏫'}</span>
                     <span className="text-xs font-bold text-pink-700 truncate">{current.name}</span>
                   </div>
                 )}
                 <select
-                  value={cls.teacherId?.toString() || ''}
+                  value={cls.teacher_id?.toString() || ''}
                   onChange={(e) => handleAssignTeacher(cls.id, e.target.value)}
                   className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-pink-400"
                   style={{ fontFamily: 'Cairo, sans-serif' }}
@@ -173,7 +212,7 @@ export default function AssignmentsPage() {
             <div className="bg-gray-50 rounded-2xl p-4">
               <p className="text-xs font-bold text-gray-500 mb-2 flex items-center gap-1"><Users size={12} /> عدد الطلاب في كل فصل</p>
               {classes.map((c) => {
-                const cnt = students.filter((s) => s.classId === c.id).length;
+                const cnt = students.filter((s) => s.class_id === c.id).length;
                 return (
                   <div key={c.id} className="flex items-center justify-between py-1">
                     <span className="text-xs font-bold text-gray-600">{c.name}</span>

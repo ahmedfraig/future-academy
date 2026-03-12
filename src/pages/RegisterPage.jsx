@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Eye, EyeOff, UserPlus, AlertCircle } from 'lucide-react';
+import { Eye, EyeOff, UserPlus, AlertCircle, Phone } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const roles = [
@@ -8,7 +8,7 @@ const roles = [
   { id: 'teacher', label: 'معلمة',       emoji: '👩‍🏫', color: 'bg-violet-500', border: 'border-violet-400 bg-violet-50', text: 'text-violet-600' },
   { id: 'manager', label: 'مدير',        emoji: '👨‍💼', color: 'bg-rose-500',   border: 'border-rose-400 bg-rose-50',   text: 'text-rose-600' },
 ];
-const specOptions = ['رياض أطفال', 'تربية خاصة', 'فنون وحرف', 'موسيقى', 'لغات'];
+const specOptions  = ['رياض أطفال', 'تربية خاصة', 'فنون وحرف', 'موسيقى', 'لغات'];
 const classOptions = ['KG1-A', 'KG1-B', 'KG2-A', 'KG2-B'];
 const dashMap = { manager: '/dashboard/manager', teacher: '/dashboard/teacher', parent: '/dashboard/parent' };
 
@@ -18,20 +18,21 @@ export default function RegisterPage() {
   const { register } = useAuth();
   const navigate = useNavigate();
 
-  const [role, setRole]         = useState('parent');
-  const [name, setName]         = useState('');
-  const [email, setEmail]       = useState('');
-  const [password, setPassword] = useState('');
+  const [role, setRole]           = useState('parent');
+  const [name, setName]           = useState('');
+  const [email, setEmail]         = useState('');
+  const [phone, setPhone]         = useState('');
+  const [password, setPassword]   = useState('');
   const [confirmPw, setConfirmPw] = useState('');
-  const [showPass, setShowPass] = useState(false);
-  const [loading, setLoading]   = useState(false);
-  const [error, setError]       = useState('');
+  const [showPass, setShowPass]   = useState(false);
+  const [loading, setLoading]     = useState(false);
+  const [error, setError]         = useState('');
 
   // Role-specific fields
-  const [specialization, setSpec]       = useState('رياض أطفال');
-  const [managerCode, setManagerCode]   = useState('');
-  const [childName, setChildName]       = useState('');
-  const [childClass, setChildClass]     = useState('KG1-A');
+  const [specialization, setSpec]     = useState('رياض أطفال');
+  const [managerCode, setManagerCode] = useState('');
+  const [childName, setChildName]     = useState('');
+  const [childClass, setChildClass]   = useState('KG1-A');
 
   const activeRole = roles.find((r) => r.id === role);
 
@@ -40,10 +41,14 @@ export default function RegisterPage() {
     if (!name || !email || !password) { setError('يرجى تعبئة جميع الحقول الإلزامية'); return; }
     if (password !== confirmPw) { setError('كلمة المرور غير متطابقة'); return; }
     if (password.length < 6) { setError('كلمة المرور يجب أن تكون 6 أحرف على الأقل'); return; }
+    if (role === 'parent' && !phone) { setError('رقم جوال ولي الأمر مطلوب'); return; }
     setLoading(true);
     setError('');
     try {
-      const user = await register({ name, email, password, role, specialization, managerCode, childName, classId: childClass });
+      const user = await register({
+        name, email, password, role, specialization, managerCode,
+        childName, classId: childClass, phone,
+      });
       navigate(dashMap[user.role] || '/login');
     } catch (err) {
       setError(err.response?.data?.error || 'حدث خطأ. يرجى المحاولة مرة أخرى');
@@ -59,7 +64,7 @@ export default function RegisterPage() {
         <div className="text-center mb-6">
           <div className="text-5xl mb-2">🌸</div>
           <h1 className="text-2xl font-black text-gray-800">إنشاء حساب جديد</h1>
-          <p className="text-sm text-gray-400">Future Academy</p>
+          <p className="text-sm text-gray-400">Royal Kids Academy</p>
         </div>
 
         <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8">
@@ -123,18 +128,35 @@ export default function RegisterPage() {
             )}
 
             {role === 'parent' && (
-              <div className="grid grid-cols-2 gap-3">
+              <>
+                {/* Parent phone number */}
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-gray-500">اسم الطفل</label>
-                  <input value={childName} onChange={(e) => setChildName(e.target.value)} placeholder="اسم الطفل" className={inputCls} style={{ fontFamily: 'Cairo, sans-serif' }} />
+                  <label className="text-xs font-bold text-gray-500 flex items-center gap-1">
+                    <Phone size={11} /> رقم جوال ولي الأمر *
+                  </label>
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="05XXXXXXXX"
+                    className={inputCls}
+                    dir="ltr"
+                  />
                 </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-gray-500">الفصل</label>
-                  <select value={childClass} onChange={(e) => setChildClass(e.target.value)} className={inputCls}>
-                    {classOptions.map((c) => <option key={c} value={c}>{c}</option>)}
-                  </select>
+                {/* Child info */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-bold text-gray-500">اسم الطفل</label>
+                    <input value={childName} onChange={(e) => setChildName(e.target.value)} placeholder="اسم الطفل" className={inputCls} style={{ fontFamily: 'Cairo, sans-serif' }} />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-bold text-gray-500">الفصل</label>
+                    <select value={childClass} onChange={(e) => setChildClass(e.target.value)} className={inputCls}>
+                      {classOptions.map((c) => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
                 </div>
-              </div>
+              </>
             )}
 
             {/* Error */}
