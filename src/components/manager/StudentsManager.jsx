@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Pencil, Trash2 } from 'lucide-react';
+import { Search, Plus, Pencil, Trash2, CheckCircle, XCircle } from 'lucide-react';
 import api from '../../services/api';
 import { ConfirmDialog, FormModal, Field, inputCls, selectCls } from './shared/SharedComponents';
 
@@ -104,6 +104,18 @@ export default function StudentsManager() {
     }
   };
 
+  const handleToggleAttendance = async (student) => {
+    const newPresent = !student.present;
+    try {
+      await api.patch(`/manager/students/${student.id}/attendance`, {
+        present: newPresent,
+        arrivalTime: newPresent ? new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }) : null,
+      });
+      setStudents((prev) => prev.map((s) => s.id === student.id ? { ...s, present: newPresent } : s));
+      showToast(newPresent ? `✅ تم تسجيل حضور ${student.name}` : `❌ تم تسجيل غياب ${student.name}`);
+    } catch { showToast('❌ فشل تحديث الحضور'); }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -163,7 +175,7 @@ export default function StudentsManager() {
           <table className="w-full text-sm" style={{ fontFamily: 'Cairo, sans-serif' }}>
             <thead>
               <tr className="bg-gray-50 border-b border-gray-100">
-                {['الطالب', 'الجنس', 'العمر', 'الفصل', 'ولي الأمر', 'رقم الجوال', 'الدواء', 'الإجراءات'].map((h) => (
+                {['الطالب', 'الحضور', 'الجنس', 'العمر', 'الفصل', 'ولي الأمر', 'رقم الجوال', 'الدواء', 'الإجراءات'].map((h) => (
                   <th key={h} className="px-4 py-3 text-right font-bold text-gray-500 text-xs whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -174,13 +186,20 @@ export default function StudentsManager() {
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       <span className="text-xl">{s.avatar}</span>
-                      <div>
-                        <p className="font-bold text-gray-700 whitespace-nowrap">{s.name}</p>
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${s.present ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-500'}`}>
-                          {s.present ? 'حاضر' : 'غائب'}
-                        </span>
-                      </div>
+                      <p className="font-bold text-gray-700 whitespace-nowrap">{s.name}</p>
                     </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <button
+                      onClick={() => handleToggleAttendance(s)}
+                      className={`flex items-center gap-1 text-xs font-bold px-2.5 py-1.5 rounded-xl border transition-all active:scale-90 ${
+                        s.present
+                          ? 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
+                          : 'bg-red-50 border-red-200 text-red-500 hover:bg-red-100'
+                      }`}
+                    >
+                      {s.present ? <><CheckCircle size={11}/> حاضر</> : <><XCircle size={11}/> غائب</>}
+                    </button>
                   </td>
                   <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{s.gender}</td>
                   <td className="px-4 py-3 text-gray-600">{s.age} سنوات</td>

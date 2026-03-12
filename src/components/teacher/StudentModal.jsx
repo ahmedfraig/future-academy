@@ -3,6 +3,7 @@ import {
   X, Save, Pill, MessageSquare, Clock, Utensils, Baby, Heart, Star,
   Timer, CheckCircle, XCircle
 } from 'lucide-react';
+import api from '../../services/api';
 
 // ── HELPERS ───────────────────────────────────
 const mealOptions = [
@@ -15,11 +16,8 @@ const MealPicker = ({ label, emoji, value, onChange }) => (
     <p className="text-xs font-bold text-gray-500 mb-1">{emoji} {label}</p>
     <div className="flex gap-1.5">
       {mealOptions.map((opt) => (
-        <button
-          key={opt.value}
-          onClick={() => onChange(opt.value)}
-          className={`flex-1 text-xs font-bold py-1.5 rounded-xl border-2 transition-all ${value === opt.value ? opt.color : 'border-gray-100 bg-gray-50 text-gray-400'}`}
-        >
+        <button key={opt.value} onClick={() => onChange(opt.value)}
+          className={`flex-1 text-xs font-bold py-1.5 rounded-xl border-2 transition-all ${value === opt.value ? opt.color : 'border-gray-100 bg-gray-50 text-gray-400'}`}>
           {opt.value === 'full' ? '✅ كاملة' : opt.value === 'half' ? '⚡ نصف' : '❌ لم يأكل'}
         </button>
       ))}
@@ -27,8 +25,8 @@ const MealPicker = ({ label, emoji, value, onChange }) => (
   </div>
 );
 
-const moods = ['😄', '😊', '😐', '😢', '😴', '😤'];
-const behaviors = ['ممتاز 🌟', 'جيد 😊', 'عادي 😐', 'يحتاج دعم 💛', 'صعب 😟'];
+const moods       = ['😄', '😊', '😐', '😢', '😴', '😤'];
+const behaviors   = ['ممتاز 🌟', 'جيد 😊', 'عادي 😐', 'يحتاج دعم 💛', 'صعب 😟'];
 const temperaments = ['هادئ', 'نشيط', 'انطوائي', 'اجتماعي', 'فضولي', 'عدواني'];
 
 function StarRating({ value, onChange }) {
@@ -46,33 +44,59 @@ function StarRating({ value, onChange }) {
 // ── MAIN MODAL ────────────────────────────────
 export function StudentModal({ student, onClose, onSave }) {
   const [fields, setFields] = useState({
-    note:          student?.note || '',
-    medication:    student?.medication || false,
-    mood:          student?.mood || null,
-    arrivalTime:   student?.arrivalTime || '',
-    meals:         student?.meals || { breakfast: null, lunch: null, snack: null },
-    potty:         student?.potty || [],
-    behavior:      student?.behavior || { withPeers: 3, withTeachers: 3, overall: 'جيد 😊' },
-    temperament:   student?.temperament || '',
+    note:        student?.note || '',
+    medication:  student?.medication || false,
+    mood:        student?.mood || null,
+    arrivalTime: student?.arrival_time || student?.arrivalTime || '',
+    meals:       student?.meals || {},
+    potty:       student?.potty || [],
+    behavior:    typeof student?.behavior === 'object' && student?.behavior !== null
+      ? student.behavior
+      : { withPeers: 3, withTeachers: 3, overall: student?.behavior || 'جيد 😊' },
+    temperament: student?.temperament || '',
+    present:     student?.present ?? false,
   });
-  const [saved, setSaved] = useState(false);
+  const [saving, setSaving]  = useState(false);
+  const [saved, setSaved]    = useState(false);
+  const [error, setError]    = useState('');
 
   if (!student) return null;
 
-  const set = (key, val) => setFields((f) => ({ ...f, [key]: val }));
-
-  const addPotty = () => {
-    const now = new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
-    setFields((f) => ({ ...f, potty: [...f.potty, now] }));
-  };
+  const set    = (key, val) => setFields((f) => ({ ...f, [key]: val }));
+  const addPotty    = () => { const now = new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }); setFields((f) => ({ ...f, potty: [...f.potty, now] })); };
   const removePotty = (idx) => setFields((f) => ({ ...f, potty: f.potty.filter((_, i) => i !== idx) }));
-  const setMeal = (meal, val) => setFields((f) => ({ ...f, meals: { ...f.meals, [meal]: val } }));
+  const setMeal     = (meal, val) => setFields((f) => ({ ...f, meals: { ...f.meals, [meal]: val } }));
   const setBehavior = (key, val) => setFields((f) => ({ ...f, behavior: { ...f.behavior, [key]: val } }));
 
-  const handleSave = () => {
-    onSave({ ...student, ...fields });
-    setSaved(true);
-    setTimeout(() => { setSaved(false); onClose(); }, 1400);
+  const handleSave = async () => {
+    setSaving(true); setError('');
+    try {
+      // 1. Attendance / arrival time
+      await api.patch(`/teacher/students/${student.id}/attendance`, {
+        present: fields.present,
+        arrivalTime: fields.arrivalTime || null,
+      });
+      // 2. Mood
+      if (fields.mood) await api.patch(`/teacher/students/${student.id}/mood`, { mood: fields.mood });
+      // 3. Meals (only if set)
+      const mealsToPatch = Object.entries(fields.meals).reduce((acc, [k, v]) => v ? { ...acc, [k]: v } : acc, {});
+      if (Object.keys(mealsToPatch).length) await api.patch(`/teacher/students/${student.id}/meal`, { meals: mealsToPatch });
+      // 4. Behavior
+      if (fields.behavior) await api.patch(`/teacher/students/${student.id}/behavior`, { behavior: fields.behavior });
+      // 5. Note
+      await api.patch(`/teacher/students/${student.id}/note`, { note: fields.note });
+      // 6. Medication
+      await api.patch(`/teacher/students/${student.id}/medication`, { medication: fields.medication });
+
+      // Update parent state
+      onSave({ ...student, ...fields, arrival_time: fields.arrivalTime });
+      setSaved(true);
+      setTimeout(() => { setSaved(false); onClose(); }, 1200);
+    } catch (err) {
+      setError(err.response?.data?.error || '❌ فشل الحفظ، حاول مرة أخرى');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const moodBg = { '😄': 'bg-emerald-50', '😊': 'bg-blue-50', '😐': 'bg-amber-50', '😢': 'bg-red-50', '😴': 'bg-purple-50', '😤': 'bg-orange-50' };
@@ -90,12 +114,25 @@ export function StudentModal({ student, onClose, onSave }) {
             <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center text-2xl shadow-sm">{student.avatar}</div>
             <div>
               <h3 className="font-bold text-gray-800 text-base">{student.name}</h3>
-              <p className="text-xs text-gray-500">{student.present ? '✅ حاضر اليوم' : '❌ غائب اليوم'} • {student.classId}</p>
+              <p className="text-xs text-gray-500">{student.class_id || student.classId}</p>
             </div>
           </div>
-          <button onClick={onClose} className="w-8 h-8 bg-white/80 rounded-xl flex items-center justify-center hover:bg-white">
-            <X size={16} className="text-gray-500" />
-          </button>
+          {/* Attendance toggle in header */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => set('present', !fields.present)}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border-2 transition-all active:scale-95 ${
+                fields.present
+                  ? 'bg-emerald-50 border-emerald-300 text-emerald-700'
+                  : 'bg-red-50 border-red-200 text-red-500'
+              }`}
+            >
+              {fields.present ? <><CheckCircle size={14}/>حاضر</> : <><XCircle size={14}/>غائب</>}
+            </button>
+            <button onClick={onClose} className="w-8 h-8 bg-white/80 rounded-xl flex items-center justify-center hover:bg-white">
+              <X size={16} className="text-gray-500" />
+            </button>
+          </div>
         </div>
 
         {/* Scrollable Body */}
@@ -118,11 +155,8 @@ export function StudentModal({ student, onClose, onSave }) {
             <p className="text-xs font-bold text-blue-600 flex items-center gap-1.5 mb-3"><Heart size={14}/> المزاج والمشاعر</p>
             <div className="flex gap-3 justify-around">
               {moods.map((m) => (
-                <button
-                  key={m}
-                  onClick={() => set('mood', m)}
-                  className={`text-2xl transition-all ${fields.mood === m ? 'scale-125 drop-shadow-md' : 'opacity-50 hover:opacity-80 hover:scale-110'}`}
-                >
+                <button key={m} onClick={() => set('mood', m)}
+                  className={`text-2xl transition-all ${fields.mood === m ? 'scale-125 drop-shadow-md' : 'opacity-50 hover:opacity-80 hover:scale-110'}`}>
                   {m}
                 </button>
               ))}
@@ -143,10 +177,7 @@ export function StudentModal({ student, onClose, onSave }) {
           <div className="bg-amber-50 rounded-2xl p-4">
             <div className="flex items-center justify-between mb-3">
               <p className="text-xs font-bold text-amber-600 flex items-center gap-1.5"><Baby size={14}/> زيارات الحمام</p>
-              <button
-                onClick={addPotty}
-                className="text-xs font-bold bg-amber-500 text-white px-3 py-1.5 rounded-xl hover:bg-amber-600 transition-all"
-              >
+              <button onClick={addPotty} className="text-xs font-bold bg-amber-500 text-white px-3 py-1.5 rounded-xl hover:bg-amber-600 transition-all">
                 + تسجيل الآن
               </button>
             </div>
@@ -170,21 +201,18 @@ export function StudentModal({ student, onClose, onSave }) {
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs text-gray-600 font-bold">مع الأصدقاء</span>
-                <StarRating value={fields.behavior.withPeers} onChange={(v) => setBehavior('withPeers', v)} />
+                <StarRating value={fields.behavior.withPeers || 3} onChange={(v) => setBehavior('withPeers', v)} />
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-xs text-gray-600 font-bold">مع المعلمات</span>
-                <StarRating value={fields.behavior.withTeachers} onChange={(v) => setBehavior('withTeachers', v)} />
+                <StarRating value={fields.behavior.withTeachers || 3} onChange={(v) => setBehavior('withTeachers', v)} />
               </div>
               <div>
                 <p className="text-xs text-gray-600 font-bold mb-2">التقييم العام</p>
                 <div className="flex flex-wrap gap-2">
                   {behaviors.map((b) => (
-                    <button
-                      key={b}
-                      onClick={() => setBehavior('overall', b)}
-                      className={`text-xs px-3 py-1.5 rounded-xl font-bold border-2 transition-all ${fields.behavior.overall === b ? 'bg-pink-500 text-white border-pink-500' : 'bg-white border-gray-200 text-gray-600'}`}
-                    >
+                    <button key={b} onClick={() => setBehavior('overall', b)}
+                      className={`text-xs px-3 py-1.5 rounded-xl font-bold border-2 transition-all ${fields.behavior.overall === b ? 'bg-pink-500 text-white border-pink-500' : 'bg-white border-gray-200 text-gray-600'}`}>
                       {b}
                     </button>
                   ))}
@@ -193,23 +221,7 @@ export function StudentModal({ student, onClose, onSave }) {
             </div>
           </div>
 
-          {/* 6. المزاج العام / الطبع */}
-          <div className="bg-violet-50 rounded-2xl p-4">
-            <p className="text-xs font-bold text-violet-600 flex items-center gap-1.5 mb-2"><Heart size={14}/> الطبع والشخصية اليوم</p>
-            <div className="flex flex-wrap gap-2">
-              {temperaments.map((t) => (
-                <button
-                  key={t}
-                  onClick={() => set('temperament', fields.temperament === t ? '' : t)}
-                  className={`text-xs px-3 py-1.5 rounded-xl font-bold border-2 transition-all ${fields.temperament === t ? 'bg-violet-500 text-white border-violet-500' : 'bg-white border-gray-200 text-gray-600'}`}
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* 7. الدواء */}
+          {/* 6. الدواء */}
           <div className="flex items-center justify-between bg-orange-50 rounded-2xl px-4 py-3 border border-orange-100">
             <div className="flex items-center gap-2">
               <Pill size={16} className="text-orange-500" />
@@ -218,15 +230,13 @@ export function StudentModal({ student, onClose, onSave }) {
                 <p className="text-xs text-orange-400">هل تناول الطفل دواءه؟</p>
               </div>
             </div>
-            <button
-              onClick={() => set('medication', !fields.medication)}
-              className={`w-12 h-6 rounded-full transition-all duration-300 relative ${fields.medication ? 'bg-orange-500' : 'bg-gray-200'}`}
-            >
+            <button onClick={() => set('medication', !fields.medication)}
+              className={`w-12 h-6 rounded-full transition-all duration-300 relative ${fields.medication ? 'bg-orange-500' : 'bg-gray-200'}`}>
               <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-all duration-300 ${fields.medication ? 'right-0.5' : 'left-0.5'}`} />
             </button>
           </div>
 
-          {/* 8. ملاحظة خاصة */}
+          {/* 7. ملاحظة خاصة */}
           <div>
             <div className="flex items-center gap-2 mb-2">
               <MessageSquare size={15} className="text-violet-500" />
@@ -240,17 +250,20 @@ export function StudentModal({ student, onClose, onSave }) {
               style={{ fontFamily: 'Cairo, sans-serif' }}
             />
           </div>
+
+          {error && <p className="text-red-500 text-xs font-bold text-center bg-red-50 rounded-xl py-2">{error}</p>}
         </div>
 
         {/* Fixed Save Button */}
         <div className="px-5 py-4 border-t border-gray-100 flex-shrink-0">
           <button
             onClick={handleSave}
+            disabled={saving || saved}
             className={`w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-black text-base transition-all ${
-              saved ? 'bg-emerald-500 text-white' : 'bg-violet-600 hover:bg-violet-700 text-white active:scale-95'
+              saved ? 'bg-emerald-500 text-white' : saving ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-violet-600 hover:bg-violet-700 text-white active:scale-95'
             }`}
           >
-            {saved ? '✅ تم الحفظ!' : <><Save size={16} /> حفظ تقرير اليوم</>}
+            {saved ? '✅ تم الحفظ!' : saving ? '⟳ جاري الحفظ...' : <><Save size={16}/> حفظ تقرير اليوم</>}
           </button>
         </div>
       </div>

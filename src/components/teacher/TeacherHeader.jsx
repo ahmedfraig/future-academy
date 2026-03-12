@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   Users, ChevronDown, UsersRound, CheckCircle2, XCircle, LogOut
 } from 'lucide-react';
-import { teacher } from '../../data/dummyData';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
@@ -17,8 +16,8 @@ export function TeacherHeader({ currentClass, onClassChange, attendance, allClas
   const navigate = useNavigate();
   const handleLogout = () => { logout(); navigate('/login'); };
 
-  // Use passed allClasses if provided, otherwise fall back to teacher.classes from dummyData
-  const classList = allClasses || teacher.classes;
+  // Use passed allClasses from API data
+  const classList = allClasses || [];
 
   return (
     <header className="bg-gradient-to-l from-violet-600 to-purple-700 text-white px-6 py-4 shadow-xl">
@@ -26,10 +25,10 @@ export function TeacherHeader({ currentClass, onClassChange, attendance, allClas
         {/* Teacher Info */}
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center text-2xl border border-white/30">
-            {user?.avatar || teacher.avatar}
+            {user?.avatar || '👩‍🏫'}
           </div>
           <div>
-            <p className="font-bold text-base">{user?.name || teacher.name}</p>
+            <p className="font-bold text-base">{user?.name || 'المعلمة'}</p>
             <p className="text-purple-200 text-xs">لوحة تحكم المعلمة</p>
           </div>
         </div>

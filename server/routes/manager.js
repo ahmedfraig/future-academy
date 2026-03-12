@@ -317,4 +317,21 @@ router.delete('/announcements/:id', ...guard, async (req, res) => {
   } catch (err) { res.status(500).json({ error: 'خطأ في حذف الإعلان' }); }
 });
 
+// ── MANAGER ATTENDANCE TOGGLE ─────────────────────────────────
+router.patch('/students/:id/attendance', ...guard, async (req, res) => {
+  try {
+    const { present, arrivalTime } = req.body;
+    const { rows } = await db.query(
+      `INSERT INTO daily_reports (student_id, report_date, present, arrival_time)
+       VALUES ($1, CURRENT_DATE, $2, $3)
+       ON CONFLICT (student_id, report_date) DO UPDATE
+         SET present = $2, arrival_time = $3,
+             mood = CASE WHEN $2 = false THEN NULL ELSE daily_reports.mood END
+       RETURNING *`,
+      [req.params.id, !!present, arrivalTime || null]
+    );
+    res.json(rows[0]);
+  } catch (err) { res.status(500).json({ error: 'خطأ في تحديث الحضور' }); }
+});
+
 module.exports = router;

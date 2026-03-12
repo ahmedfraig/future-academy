@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Home, FileText, MessageSquare, User, Bell, LogOut, X, Check, BellOff, Shield, Phone, Star, ChevronLeft } from 'lucide-react';
-import { nurseryInfo, currentChild } from '../../data/dummyData';
+import { nurseryInfo } from '../../data/dummyData';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
@@ -103,9 +103,9 @@ export function TopHeader() {
           {/* Child Avatar */}
           <div className="flex flex-col items-center gap-0.5 cursor-pointer">
             <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-xl border-2 border-white/40">
-              {currentChild.avatar}
-            </div>
-            <span className="text-xs text-blue-100">{user?.name?.split(' ')[0] || currentChild.name}</span>
+            {user?.avatar || '👦'}
+          </div>
+            <span className="text-xs text-blue-100">{user?.name?.split(' ')[0] || 'حسابي'}</span>
           </div>
         </div>
       </header>

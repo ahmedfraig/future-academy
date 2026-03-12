@@ -1,11 +1,7 @@
 import React, { useState } from 'react';
 import { X, Clock, CheckCircle } from 'lucide-react';
-import { moodOptions } from '../../data/dummyData';
 
-// =============================================
-// BULK ACTION BAR (bottom sheet)
-// =============================================
-export function BulkActionBar({ selectedCount, onBulkMeal, onBulkPotty, onBulkMood, onClearSelection }) {
+export function BulkActionBar({ selectedCount, moodOptions = [], onBulkMeal, onBulkPotty, onBulkMood, onClearSelection }) {
   const [activePicker, setActivePicker] = useState(null); // 'meal' | 'mood' | null
   const mealOptions = [
     { id: 'breakfast', label: 'الفطار', emoji: '🥐' },
