@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Pencil, Trash2, Phone, Mail } from 'lucide-react';
+import { Plus, Pencil, Trash2, Phone, Mail, KeyRound, Copy, X } from 'lucide-react';
 import api from '../../services/api';
 import { ConfirmDialog, FormModal, Field, inputCls, selectCls } from './shared/SharedComponents';
 
@@ -16,8 +16,22 @@ export default function TeachersManager() {
   const [confirmId, setConfirmId] = useState(null);
   const [toast, setToast]       = useState('');
   const [saving, setSaving]     = useState(false);
+  const [inviteModal, setInviteModal] = useState(null); // { name, code }
+  const [generatingId, setGeneratingId] = useState(null);
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 2500); };
+
+  const generateCode = async (teacher) => {
+    setGeneratingId(teacher.id);
+    try {
+      const { data } = await api.post(`/manager/teachers/${teacher.id}/generate-code`);
+      setInviteModal({ name: data.teacherName, code: data.plainCode });
+    } catch {
+      showToast('❌ فشل توليد رمز الدعوة');
+    } finally {
+      setGeneratingId(null);
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -157,6 +171,15 @@ export default function TeachersManager() {
 
             {/* Actions */}
             <div className="flex gap-2 flex-shrink-0">
+              <button
+                onClick={() => generateCode(t)}
+                disabled={generatingId === t.id}
+                className="w-9 h-9 bg-amber-50 hover:bg-amber-100 rounded-xl flex items-center justify-center disabled:opacity-40" title="توليد رمز دعوة للمعلمة"
+              >
+                {generatingId === t.id
+                  ? <span className="animate-spin text-xs">⟳</span>
+                  : <KeyRound size={14} className="text-amber-600" />}
+              </button>
               <button onClick={() => openEdit(t)} className="w-9 h-9 bg-blue-50 hover:bg-blue-100 rounded-xl flex items-center justify-center">
                 <Pencil size={14} className="text-blue-600" />
               </button>
@@ -221,6 +244,39 @@ export default function TeachersManager() {
       </FormModal>
 
       <ConfirmDialog isOpen={!!confirmId} title="حذف المعلمة" message={`هل أنت متأكد من حذف "${teachers.find((t) => t.id === confirmId)?.name}"؟`} onConfirm={handleDelete} onCancel={() => setConfirmId(null)} />
+
+      {/* Invite Code Modal */}
+      {inviteModal && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" dir="rtl">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 flex flex-col gap-4" style={{ fontFamily: 'Cairo, sans-serif' }}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 bg-amber-100 rounded-xl flex items-center justify-center">
+                  <KeyRound size={18} className="text-amber-600" />
+                </div>
+                <h3 className="font-black text-gray-800">رمز دعوة المعلمة</h3>
+              </div>
+              <button onClick={() => setInviteModal(null)} className="w-8 h-8 bg-gray-100 rounded-xl flex items-center justify-center hover:bg-gray-200">
+                <X size={14} className="text-gray-500" />
+              </button>
+            </div>
+            <p className="text-sm text-gray-500">رمز الدعوة الخاص بـ <span className="font-bold text-gray-800">{inviteModal.name}</span></p>
+            <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-4 text-center">
+              <p className="font-black text-2xl tracking-widest text-amber-800 select-all" dir="ltr">{inviteModal.code}</p>
+            </div>
+            <div className="bg-red-50 border border-red-200 rounded-xl px-3 py-2.5">
+              <p className="text-xs font-bold text-red-600">⚠️ يُعرض هذا الرمز مرة واحدة فقط — سلّمه للمعلمة الآن</p>
+            </div>
+            <button
+              onClick={() => { navigator.clipboard.writeText(inviteModal.code); showToast('✅ تم نسخ الرمز'); }}
+              className="flex items-center justify-center gap-2 w-full py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl font-bold text-sm transition-all"
+            >
+              <Copy size={15} /> نسخ الرمز
+            </button>
+          </div>
+        </div>
+      )}
+
       {toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[300] bg-gray-900 text-white text-sm font-bold px-5 py-3 rounded-2xl shadow-lg animate-slide-up">{toast}</div>}
     </div>
   );

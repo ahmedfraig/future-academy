@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Pencil, Trash2, CheckCircle, XCircle } from 'lucide-react';
+import { Search, Plus, Pencil, Trash2, CheckCircle, XCircle, KeyRound, Copy, X } from 'lucide-react';
 import api from '../../services/api';
 import { ConfirmDialog, FormModal, Field, inputCls, selectCls } from './shared/SharedComponents';
 
@@ -18,8 +18,22 @@ export default function StudentsManager() {
   const [confirmId, setConfirmId] = useState(null);
   const [toast, setToast]       = useState('');
   const [saving, setSaving]     = useState(false);
+  const [inviteModal, setInviteModal] = useState(null); // { name, code }
+  const [generatingId, setGeneratingId] = useState(null);
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 2500); };
+
+  const generateCode = async (student) => {
+    setGeneratingId(student.id);
+    try {
+      const { data } = await api.post(`/manager/students/${student.id}/generate-code`);
+      setInviteModal({ name: data.studentName, code: data.plainCode });
+    } catch {
+      showToast('❌ فشل توليد رمز الدعوة');
+    } finally {
+      setGeneratingId(null);
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -175,7 +189,7 @@ export default function StudentsManager() {
           <table className="w-full text-sm" style={{ fontFamily: 'Cairo, sans-serif' }}>
             <thead>
               <tr className="bg-gray-50 border-b border-gray-100">
-                {['الطالب', 'الحضور', 'الجنس', 'العمر', 'الفصل', 'ولي الأمر', 'رقم الجوال', 'الدواء', 'الإجراءات'].map((h) => (
+                {['الطالب', 'الحضور', 'الجنس', 'العمر', 'الفصل', 'ولي الأمر', 'رقم الجوال', 'الدواء', 'رمز الدعوة', 'الإجراءات'].map((h) => (
                   <th key={h} className="px-4 py-3 text-right font-bold text-gray-500 text-xs whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -214,7 +228,18 @@ export default function StudentsManager() {
                       : <span className="text-gray-300 text-xs">—</span>}
                   </td>
                   <td className="px-4 py-3">
+                    {s.invite_code_hash
+                      ? <span className="bg-emerald-100 text-emerald-700 text-xs font-bold px-2.5 py-1 rounded-xl flex items-center gap-1 w-fit"><KeyRound size={10}/>رمز مُولَّد</span>
+                      : <span className="text-gray-300 text-xs">لا يوجد</span>}
+                  </td>
+                  <td className="px-4 py-3">
                     <div className="flex gap-1.5">
+                      <button onClick={() => generateCode(s)} disabled={generatingId === s.id}
+                        className="w-8 h-8 bg-amber-50 hover:bg-amber-100 rounded-xl flex items-center justify-center transition-colors disabled:opacity-40" title="توليد رمز دعوة لولي الأمر">
+                        {generatingId === s.id
+                          ? <span className="animate-spin text-xs">⟳</span>
+                          : <KeyRound size={13} className="text-amber-600" />}
+                      </button>
                       <button onClick={() => openEdit(s)} className="w-8 h-8 bg-blue-50 hover:bg-blue-100 rounded-xl flex items-center justify-center transition-colors" title="تعديل">
                         <Pencil size={13} className="text-blue-600" />
                       </button>
@@ -286,6 +311,38 @@ export default function StudentsManager() {
         onConfirm={handleDelete}
         onCancel={() => setConfirmId(null)}
       />
+
+      {/* Invite Code Modal */}
+      {inviteModal && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" dir="rtl">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 flex flex-col gap-4" style={{ fontFamily: 'Cairo, sans-serif' }}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 bg-amber-100 rounded-xl flex items-center justify-center">
+                  <KeyRound size={18} className="text-amber-600" />
+                </div>
+                <h3 className="font-black text-gray-800">رمز دعوة ولي الأمر</h3>
+              </div>
+              <button onClick={() => setInviteModal(null)} className="w-8 h-8 bg-gray-100 rounded-xl flex items-center justify-center hover:bg-gray-200">
+                <X size={14} className="text-gray-500" />
+              </button>
+            </div>
+            <p className="text-sm text-gray-500">رمز الدعوة الخاص بـ <span className="font-bold text-gray-800">{inviteModal.name}</span></p>
+            <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-4 text-center">
+              <p className="font-black text-2xl tracking-widest text-amber-800 select-all" dir="ltr">{inviteModal.code}</p>
+            </div>
+            <div className="bg-red-50 border border-red-200 rounded-xl px-3 py-2.5">
+              <p className="text-xs font-bold text-red-600">⚠️ يُعرض هذا الرمز مرة واحدة فقط — سلّمه لولي الأمر الآن</p>
+            </div>
+            <button
+              onClick={() => { navigator.clipboard.writeText(inviteModal.code); showToast('✅ تم نسخ الرمز'); }}
+              className="flex items-center justify-center gap-2 w-full py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl font-bold text-sm transition-all"
+            >
+              <Copy size={15} /> نسخ الرمز
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Toast */}
       {toast && (

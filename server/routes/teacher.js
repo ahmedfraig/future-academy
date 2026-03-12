@@ -104,7 +104,11 @@ router.patch('/students/:id/behavior', ...guard, async (req, res) => {
   try {
     const client = await db.connect();
     try {
-      const { rows } = await upsertReport(client, req.params.id, { behavior: req.body.behavior });
+      // Store as JSON string since behavior column is TEXT
+      const behaviorVal = typeof req.body.behavior === 'object'
+        ? JSON.stringify(req.body.behavior)
+        : req.body.behavior;
+      const { rows } = await upsertReport(client, req.params.id, { behavior: behaviorVal });
       res.json(rows[0]);
     } finally { client.release(); }
   } catch (err) { res.status(500).json({ error: 'خطأ في تحديث السلوك' }); }
@@ -127,16 +131,17 @@ router.patch('/students/:id/meal', ...guard, async (req, res) => {
 });
 
 // ── PATCH /api/teacher/students/:id/potty ─────────────────────
+// Accepts { times: string[] } — replaces today's entire potty array
 router.patch('/students/:id/potty', ...guard, async (req, res) => {
   try {
-    const now = new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
+    const times = Array.isArray(req.body.times) ? req.body.times : [];
     const { rows } = await db.query(
       `INSERT INTO daily_reports (student_id, report_date, potty)
-       VALUES ($1, CURRENT_DATE, ARRAY[$2]::text[])
+       VALUES ($1, CURRENT_DATE, $2::text[])
        ON CONFLICT (student_id, report_date) DO UPDATE
-         SET potty = array_append(daily_reports.potty, $2)
+         SET potty = $2::text[]
        RETURNING *`,
-      [req.params.id, now]
+      [req.params.id, times]
     );
     res.json(rows[0]);
   } catch (err) { res.status(500).json({ error: 'خطأ في تسجيل الحمام' }); }

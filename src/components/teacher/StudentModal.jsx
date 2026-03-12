@@ -83,9 +83,11 @@ export function StudentModal({ student, onClose, onSave }) {
       if (Object.keys(mealsToPatch).length) await api.patch(`/teacher/students/${student.id}/meal`, { meals: mealsToPatch });
       // 4. Behavior
       if (fields.behavior) await api.patch(`/teacher/students/${student.id}/behavior`, { behavior: fields.behavior });
-      // 5. Note
+      // 5. Potty (replace entire array for today)
+      await api.patch(`/teacher/students/${student.id}/potty`, { times: fields.potty });
+      // 6. Note
       await api.patch(`/teacher/students/${student.id}/note`, { note: fields.note });
-      // 6. Medication
+      // 7. Medication
       await api.patch(`/teacher/students/${student.id}/medication`, { medication: fields.medication });
 
       // Update parent state

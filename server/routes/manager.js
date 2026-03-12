@@ -334,4 +334,50 @@ router.patch('/students/:id/attendance', ...guard, async (req, res) => {
   } catch (err) { res.status(500).json({ error: 'خطأ في تحديث الحضور' }); }
 });
 
+// ── INVITE CODE GENERATION ────────────────────────────────────
+const crypto = require('crypto');
+const bcrypt  = require('bcryptjs');
+
+function generateInviteCode() {
+  // Format: XXXX-XXXX-XXXX  (12 uppercase alphanumeric chars, hard to guess)
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O/1/I confusion
+  const raw   = Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+  return `${raw.slice(0,4)}-${raw.slice(4,8)}-${raw.slice(8,12)}`;
+}
+
+// POST /api/manager/students/:id/generate-code
+router.post('/students/:id/generate-code', ...guard, async (req, res) => {
+  try {
+    const code   = generateInviteCode();
+    const hashed = bcrypt.hashSync(code, 10);
+    const { rows } = await db.query(
+      'UPDATE students SET invite_code_hash = $1 WHERE id = $2 RETURNING id, name',
+      [hashed, req.params.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'الطالب غير موجود' });
+    // Return plaintext code ONCE — manager must copy it now
+    res.json({ plainCode: code, studentName: rows[0].name });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'خطأ في توليد رمز الدعوة' });
+  }
+});
+
+// POST /api/manager/teachers/:id/generate-code
+router.post('/teachers/:id/generate-code', ...guard, async (req, res) => {
+  try {
+    const code   = generateInviteCode();
+    const hashed = bcrypt.hashSync(code, 10);
+    const { rows } = await db.query(
+      'UPDATE teachers SET invite_code_hash = $1 WHERE id = $2 RETURNING id, name',
+      [hashed, req.params.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'المعلمة غير موجودة' });
+    res.json({ plainCode: code, teacherName: rows[0].name });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'خطأ في توليد رمز الدعوة' });
+  }
+});
+
 module.exports = router;

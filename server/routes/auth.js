@@ -19,7 +19,7 @@ const signToken = (user) =>
     { expiresIn: '7d' }
   );
 
-// POST /api/auth/login
+// ── POST /api/auth/login ──────────────────────────────────────
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -45,67 +45,163 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// POST /api/auth/register
+// ── GET /api/auth/verify-code ─────────────────────────────────
+// Validates an invite code and returns the linked name for UI preview
+// Query: ?code=XXXX-XXXX-XXXX&role=parent|teacher
+router.get('/verify-code', async (req, res) => {
+  const { code, role } = req.query;
+  if (!code || !role) return res.status(400).json({ error: 'الرمز والدور مطلوبان' });
+
+  try {
+    if (role === 'parent') {
+      // Check all students with a code hash
+      const { rows } = await db.query(
+        'SELECT id, name, invite_code_hash FROM students WHERE invite_code_hash IS NOT NULL'
+      );
+      const matched = rows.find((r) => bcrypt.compareSync(code.trim().toUpperCase(), r.invite_code_hash));
+      if (!matched) return res.status(404).json({ error: 'رمز الدعوة غير صحيح أو منتهي الصلاحية' });
+
+      // Check not already used
+      const used = await db.query('SELECT id FROM users WHERE child_id = $1', [matched.id]);
+      if (used.rows.length > 0) return res.status(409).json({ error: 'تم استخدام هذا الرمز بالفعل' });
+
+      return res.json({ valid: true, studentName: matched.name, studentId: matched.id });
+    }
+
+    if (role === 'teacher') {
+      const { rows } = await db.query(
+        'SELECT id, name, invite_code_hash FROM teachers WHERE invite_code_hash IS NOT NULL'
+      );
+      const matched = rows.find((r) => bcrypt.compareSync(code.trim().toUpperCase(), r.invite_code_hash));
+      if (!matched) return res.status(404).json({ error: 'رمز الدعوة غير صحيح أو منتهي الصلاحية' });
+
+      const used = await db.query('SELECT id FROM users WHERE teacher_id = $1', [matched.id]);
+      if (used.rows.length > 0) return res.status(409).json({ error: 'تم استخدام هذا الرمز بالفعل' });
+
+      return res.json({ valid: true, teacherName: matched.name, teacherId: matched.id });
+    }
+
+    return res.status(400).json({ error: 'دور غير صالح — يجب أن يكون parent أو teacher' });
+  } catch (err) {
+    console.error('verify-code error:', err);
+    res.status(500).json({ error: 'خطأ في التحقق من الرمز' });
+  }
+});
+
+// ── POST /api/auth/register ───────────────────────────────────
+// Managers cannot self-register. Parent/Teacher must use an invite code.
 router.post('/register', async (req, res) => {
   const client = await db.connect();
   try {
-    const { name, email, password, role, specialization, managerCode, childName, classId, phone } = req.body;
+    const { email, password, phone, inviteCode, role } = req.body;
 
-    if (!name || !email || !password || !role)
-      return res.status(400).json({ error: 'جميع الحقول مطلوبة' });
-    if (!['manager', 'teacher', 'parent'].includes(role))
+    // Managers are created by DB seeding only — block public registration
+    if (!role || role === 'manager') {
+      return res.status(403).json({ error: 'تسجيل المدير غير مسموح من هنا — تواصل مع الإدارة' });
+    }
+    if (!['parent', 'teacher'].includes(role)) {
       return res.status(400).json({ error: 'دور غير صالح' });
-    if (role === 'manager' && managerCode !== 'RAWDAH2026')
-      return res.status(403).json({ error: 'رمز المدير غير صحيح' });
+    }
+    if (!email || !password || !inviteCode) {
+      return res.status(400).json({ error: 'يرجى تعبئة جميع الحقول المطلوبة' });
+    }
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'كلمة المرور يجب أن تكون 6 أحرف على الأقل' });
+    }
 
+    // Check email not already used
     const existing = await client.query('SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [email]);
     if (existing.rows.length > 0)
       return res.status(409).json({ error: 'البريد الإلكتروني مستخدم بالفعل' });
 
-    await client.query('BEGIN');
+    const normalizedCode = inviteCode.trim().toUpperCase();
 
-    const hashed = bcrypt.hashSync(password, 10);
-    const avatar = role === 'manager' ? '👨‍💼' : role === 'teacher' ? '👩‍🏫' : '👨';
+    // ── PARENT FLOW ──
+    if (role === 'parent') {
+      if (!phone) return res.status(400).json({ error: 'رقم الجوال مطلوب لتسجيل ولي الأمر' });
 
-    let childId = null;
-
-    // If parent, create a child stub first
-    if (role === 'parent' && childName && classId) {
-      const childRes = await client.query(
-        `INSERT INTO students (name, avatar, gender, age, class_id, parent_name, phone, medication)
-         VALUES ($1, '👦', 'ذكر', 4, $2, $3, $4, false)
-         RETURNING id`,
-        [childName, classId, name, phone || '']
+      const { rows: students } = await client.query(
+        'SELECT id, name, invite_code_hash FROM students WHERE invite_code_hash IS NOT NULL'
       );
-      childId = childRes.rows[0].id;
+      const student = students.find((s) => bcrypt.compareSync(normalizedCode, s.invite_code_hash));
+      if (!student) return res.status(400).json({ error: 'رمز الدعوة غير صحيح' });
+
+      // Ensure code not already used
+      const alreadyUsed = await client.query('SELECT id FROM users WHERE child_id = $1', [student.id]);
+      if (alreadyUsed.rows.length > 0)
+        return res.status(409).json({ error: 'تم استخدام هذا الرمز بالفعل' });
+
+      await client.query('BEGIN');
+
+      // Update student's parent info with the phone
+      await client.query(
+        'UPDATE students SET phone = $1 WHERE id = $2',
+        [phone, student.id]
+      );
+
+      const hashed = bcrypt.hashSync(password, 10);
+      const { rows: userRows } = await client.query(
+        `INSERT INTO users (name, email, password, role, avatar, child_id, invite_code)
+         VALUES ($1, $2, $3, 'parent', '👨', $4, $5) RETURNING *`,
+        [student.name + ' (ولي الأمر)', email, hashed, student.id, normalizedCode]
+      );
+      const newUser = userRows[0];
+
+      await client.query(
+        `INSERT INTO activity_log (icon, text, type) VALUES ('👨', $1, 'user')`,
+        [`ولي أمر جديد سجّل حسابه - الطفل: ${student.name}`]
+      );
+      await client.query('COMMIT');
+
+      const token = signToken(newUser);
+      const { password: _, ...safeUser } = newUser;
+      return res.status(201).json({ token, user: safeUser });
     }
 
-    const userRes = await client.query(
-      `INSERT INTO users (name, email, password, role, avatar, class_id, teacher_id, child_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-       RETURNING *`,
-      [
-        name, email, hashed, role, avatar,
-        role === 'teacher' ? (classId || null) : null,
-        null,
-        childId,
-      ]
-    );
-    const newUser = userRes.rows[0];
+    // ── TEACHER FLOW ──
+    if (role === 'teacher') {
+      const { rows: teachers } = await client.query(
+        'SELECT id, name, invite_code_hash FROM teachers WHERE invite_code_hash IS NOT NULL'
+      );
+      const teacher = teachers.find((t) => bcrypt.compareSync(normalizedCode, t.invite_code_hash));
+      if (!teacher) return res.status(400).json({ error: 'رمز الدعوة غير صحيح' });
 
-    // Log activity
-    await client.query(
-      `INSERT INTO activity_log (icon, text, type) VALUES ($1, $2, $3)`,
-      ['👤', `تم تسجيل مستخدم جديد: ${name}`, 'user']
-    );
+      const alreadyUsed = await client.query('SELECT id FROM users WHERE teacher_id = $1', [teacher.id]);
+      if (alreadyUsed.rows.length > 0)
+        return res.status(409).json({ error: 'تم استخدام هذا الرمز بالفعل' });
 
-    await client.query('COMMIT');
+      // Find teacher's assigned class
+      const classRes = await client.query(
+        'SELECT id FROM classes WHERE teacher_id = $1 LIMIT 1',
+        [teacher.id]
+      );
+      const classId = classRes.rows[0]?.id || null;
 
-    const token = signToken(newUser);
-    const { password: _, ...safeUser } = newUser;
-    res.status(201).json({ token, user: safeUser });
+      await client.query('BEGIN');
+      const hashed = bcrypt.hashSync(password, 10);
+
+      // Update teacher's email in teachers table too
+      await client.query('UPDATE teachers SET email = $1 WHERE id = $2', [email, teacher.id]);
+
+      const { rows: userRows } = await client.query(
+        `INSERT INTO users (name, email, password, role, avatar, class_id, teacher_id, invite_code)
+         VALUES ($1, $2, $3, 'teacher', '👩‍🏫', $4, $5, $6) RETURNING *`,
+        [teacher.name, email, hashed, classId, teacher.id, normalizedCode]
+      );
+      const newUser = userRows[0];
+
+      await client.query(
+        `INSERT INTO activity_log (icon, text, type) VALUES ('👩‍🏫', $1, 'user')`,
+        [`معلمة جديدة سجّلت حسابها: ${teacher.name}`]
+      );
+      await client.query('COMMIT');
+
+      const token = signToken(newUser);
+      const { password: _, ...safeUser } = newUser;
+      return res.status(201).json({ token, user: safeUser });
+    }
   } catch (err) {
-    await client.query('ROLLBACK');
+    await client.query('ROLLBACK').catch(() => {});
     console.error('Register error:', err);
     res.status(500).json({ error: 'خطأ في إنشاء الحساب' });
   } finally {
@@ -113,7 +209,7 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// GET /api/auth/me
+// ── GET /api/auth/me ──────────────────────────────────────────
 router.get('/me', verifyToken, async (req, res) => {
   try {
     const { rows } = await db.query('SELECT * FROM users WHERE id = $1', [req.user.id]);
