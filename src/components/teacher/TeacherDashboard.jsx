@@ -3,6 +3,7 @@ import { TeacherHeader, GlobalAcademicForm } from './TeacherHeader';
 import { StudentsGrid } from './StudentsGrid';
 import { BulkActionBar } from './BulkActionBar';
 import { StudentModal } from './StudentModal';
+import { BookOpen, Plus, Trash2, CheckCircle2, X, ChevronDown, ChevronUp } from 'lucide-react';
 import api from '../../services/api';
 
 const moodOptions = [
@@ -14,6 +15,266 @@ const moodOptions = [
   { emoji: '😤', label: 'عصبي' },
 ];
 
+// Subject color palette
+const COLOR_OPTIONS = [
+  { key: 'blue',    label: 'أزرق',   cls: 'bg-blue-500' },
+  { key: 'emerald', label: 'أخضر',   cls: 'bg-emerald-500' },
+  { key: 'violet',  label: 'بنفسجي', cls: 'bg-violet-500' },
+  { key: 'sky',     label: 'سماوي',  cls: 'bg-sky-500' },
+  { key: 'pink',    label: 'وردي',   cls: 'bg-pink-500' },
+  { key: 'amber',   label: 'ذهبي',   cls: 'bg-amber-500' },
+  { key: 'red',     label: 'أحمر',   cls: 'bg-red-500' },
+];
+
+const subjectBg = {
+  blue:    'bg-blue-50 border-blue-200 text-blue-700',
+  emerald: 'bg-emerald-50 border-emerald-200 text-emerald-700',
+  violet:  'bg-violet-50 border-violet-200 text-violet-700',
+  sky:     'bg-sky-50 border-sky-200 text-sky-700',
+  pink:    'bg-pink-50 border-pink-200 text-pink-700',
+  amber:   'bg-amber-50 border-amber-200 text-amber-700',
+  red:     'bg-red-50 border-red-200 text-red-700',
+};
+
+// ── SUBJECTS PANEL ────────────────────────────
+function SubjectsPanel({ showToast }) {
+  const [subjects, setSubjects]         = useState([]);
+  const [loading, setLoading]           = useState(true);
+  const [expanded, setExpanded]         = useState(true);
+  const [addMode, setAddMode]           = useState(false);
+  const [newName, setNewName]           = useState('');
+  const [newIcon, setNewIcon]           = useState('📚');
+  const [newColor, setNewColor]         = useState('blue');
+  const [saving, setSaving]             = useState(false);
+  const [assignmentInputs, setAssignmentInputs] = useState({});
+
+  const fetchSubjects = useCallback(async () => {
+    try {
+      const { data } = await api.get('/teacher/daily-subjects');
+      setSubjects(data);
+      // Init assignment inputs from current data
+      const incoming = {};
+      data.forEach((s) => { incoming[s.id] = s.assignment || ''; });
+      setAssignmentInputs(incoming);
+    } catch {
+      showToast('❌ فشل تحميل المواد');
+    } finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { fetchSubjects(); }, [fetchSubjects]);
+
+  const toggleTaught = async (subject) => {
+    const newTaught = !subject.taught;
+    // Optimistic update
+    setSubjects((prev) => prev.map((s) => s.id === subject.id ? { ...s, taught: newTaught } : s));
+    try {
+      await api.post('/teacher/daily-subjects', {
+        subjectId: subject.id,
+        taught: newTaught,
+        assignment: assignmentInputs[subject.id] || subject.assignment || '',
+      });
+    } catch {
+      // Rollback
+      setSubjects((prev) => prev.map((s) => s.id === subject.id ? { ...s, taught: subject.taught } : s));
+      showToast('❌ فشل تحديث المادة');
+    }
+  };
+
+  const saveAssignment = async (subject) => {
+    try {
+      await api.post('/teacher/daily-subjects', {
+        subjectId: subject.id,
+        taught: subject.taught,
+        assignment: assignmentInputs[subject.id] || '',
+      });
+      setSubjects((prev) => prev.map((s) => s.id === subject.id ? { ...s, assignment: assignmentInputs[subject.id] } : s));
+      showToast('✅ تم حفظ الواجب');
+    } catch { showToast('❌ فشل حفظ الواجب'); }
+  };
+
+  const handleAddSubject = async () => {
+    if (!newName.trim()) return;
+    setSaving(true);
+    try {
+      await api.post('/teacher/subjects', { name: newName.trim(), icon: newIcon, color: newColor });
+      await fetchSubjects();
+      setNewName(''); setNewIcon('📚'); setNewColor('blue'); setAddMode(false);
+      showToast('✅ تمت إضافة المادة');
+    } catch (err) {
+      showToast(err.response?.data?.error || '❌ فشل إضافة المادة');
+    } finally { setSaving(false); }
+  };
+
+  const handleDelete = async (id) => {
+    try {
+      await api.delete(`/teacher/subjects/${id}`);
+      setSubjects((prev) => prev.filter((s) => s.id !== id));
+      showToast('🗑 تم حذف المادة');
+    } catch { showToast('❌ فشل حذف المادة'); }
+  };
+
+  const taughtCount = subjects.filter((s) => s.taught).length;
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm mt-5 mb-3 overflow-hidden">
+      {/* Header */}
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 bg-indigo-100 rounded-xl flex items-center justify-center">
+            <BookOpen size={18} className="text-indigo-600" />
+          </div>
+          <div className="text-right">
+            <p className="font-bold text-gray-800 text-sm">مواد اليوم والواجبات</p>
+            <p className="text-xs text-gray-400">
+              {loading ? 'جاري التحميل...' : `${taughtCount} / ${subjects.length} تم تدريسها`}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {taughtCount > 0 && (
+            <span className="text-xs font-bold bg-indigo-100 text-indigo-700 px-2.5 py-1 rounded-full">
+              {taughtCount} مادة ✅
+            </span>
+          )}
+          {expanded ? <ChevronUp size={18} className="text-gray-400" /> : <ChevronDown size={18} className="text-gray-400" />}
+        </div>
+      </button>
+
+      {expanded && (
+        <div className="px-5 pb-5">
+          {/* Subject Cards */}
+          {loading ? (
+            <p className="text-sm text-gray-400 text-center py-4">جاري التحميل...</p>
+          ) : subjects.length === 0 ? (
+            <div className="text-center py-4 bg-gray-50 rounded-2xl">
+              <p className="text-sm text-gray-400">لم تُضف مواد لهذا الفصل بعد</p>
+              <p className="text-xs text-gray-300 mt-1">اضغط + لإضافة مادة</p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {subjects.map((s) => {
+                const colors = subjectBg[s.color] || subjectBg.blue;
+                return (
+                  <div key={s.id} className={`rounded-2xl border p-3 transition-all ${s.taught ? colors : 'bg-gray-50 border-gray-200'}`}>
+                    <div className="flex items-center gap-3">
+                      {/* Toggle taught button */}
+                      <button
+                        onClick={() => toggleTaught(s)}
+                        className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 transition-all ${
+                          s.taught ? 'bg-emerald-500 text-white' : 'bg-white border-2 border-gray-300 text-gray-300'
+                        }`}
+                      >
+                        <CheckCircle2 size={16} />
+                      </button>
+                      {/* Icon + Name */}
+                      <div className="flex-1 min-w-0">
+                        <p className={`font-bold text-sm ${s.taught ? '' : 'text-gray-500'}`}>
+                          {s.icon} {s.name}
+                        </p>
+                      </div>
+                      {/* Delete */}
+                      <button
+                        onClick={() => handleDelete(s.id)}
+                        className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-300 hover:text-red-400 hover:bg-red-50 transition-all"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                    {/* Assignment input */}
+                    {s.taught && (
+                      <div className="mt-2 flex gap-2">
+                        <input
+                          type="text"
+                          value={assignmentInputs[s.id] ?? ''}
+                          onChange={(e) => setAssignmentInputs((prev) => ({ ...prev, [s.id]: e.target.value }))}
+                          placeholder="📝 الواجب المنزلي (اختياري)..."
+                          className="flex-1 bg-white/70 border border-gray-200 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-indigo-400"
+                          style={{ fontFamily: 'Cairo, sans-serif' }}
+                        />
+                        <button
+                          onClick={() => saveAssignment(s)}
+                          className="text-xs font-bold bg-indigo-500 text-white px-3 py-1.5 rounded-xl hover:bg-indigo-600 transition-all whitespace-nowrap"
+                        >
+                          حفظ
+                        </button>
+                      </div>
+                    )}
+                    {s.assignment && !s.taught && (
+                      <p className="text-xs text-gray-400 mt-1 pr-11">📝 {s.assignment}</p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Add Subject Form */}
+          {addMode ? (
+            <div className="mt-4 bg-indigo-50 rounded-2xl p-4 border border-indigo-100">
+              <p className="text-xs font-bold text-indigo-700 mb-3">إضافة مادة جديدة</p>
+              <div className="flex gap-2 mb-3">
+                <input
+                  type="text"
+                  value={newIcon}
+                  onChange={(e) => setNewIcon(e.target.value)}
+                  placeholder="📚"
+                  className="w-14 bg-white border border-indigo-200 rounded-xl px-2 py-2 text-center text-lg focus:outline-none"
+                />
+                <input
+                  type="text"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  placeholder="اسم المادة..."
+                  className="flex-1 bg-white border border-indigo-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-400"
+                  style={{ fontFamily: 'Cairo, sans-serif' }}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddSubject()}
+                />
+              </div>
+              {/* Color picker */}
+              <div className="flex gap-2 mb-3 flex-wrap">
+                {COLOR_OPTIONS.map((c) => (
+                  <button
+                    key={c.key}
+                    onClick={() => setNewColor(c.key)}
+                    className={`w-7 h-7 rounded-full ${c.cls} transition-all ${newColor === c.key ? 'ring-2 ring-offset-1 ring-gray-400 scale-110' : 'opacity-60 hover:opacity-100'}`}
+                    title={c.label}
+                  />
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleAddSubject}
+                  disabled={!newName.trim() || saving}
+                  className={`flex-1 py-2 rounded-xl font-bold text-sm transition-all ${newName.trim() && !saving ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
+                >
+                  {saving ? '...' : '✅ إضافة'}
+                </button>
+                <button
+                  onClick={() => { setAddMode(false); setNewName(''); }}
+                  className="w-10 rounded-xl bg-gray-200 text-gray-600 hover:bg-gray-300 flex items-center justify-center transition-all"
+                >
+                  <X size={15} />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setAddMode(true)}
+              className="mt-4 w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl border-2 border-dashed border-indigo-200 text-indigo-500 hover:bg-indigo-50 text-xs font-bold transition-all"
+            >
+              <Plus size={14} /> إضافة مادة جديدة
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── TEACHER DASHBOARD ─────────────────────────
 export default function TeacherDashboard() {
   const [allStu, setAllStu]   = useState([]);
   const [classes, setClasses] = useState([]);
@@ -25,7 +286,6 @@ export default function TeacherDashboard() {
 
   const showToast = (msg) => { setToastMsg(msg); setTimeout(() => setToastMsg(null), 2500); };
 
-  // Load all classes + students
   const fetchData = useCallback(async () => {
     try {
       const [clsRes, stuRes] = await Promise.all([
@@ -44,18 +304,15 @@ export default function TeacherDashboard() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Students filtered by current class
   const students = allStu.filter((s) => s.class_id === currentClass);
   const presentCount = students.filter((s) => s.present).length;
 
   const handleClassChange = (cls) => { setCurrentClass(cls); setSelectedIds([]); setModalStudent(null); };
 
-  // Selection
   const handleSelect = (id) =>
     setSelectedIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
   const clearSelection = () => setSelectedIds([]);
 
-  // Toggle single student attendance
   const handleToggleAttendance = async (student) => {
     const newPresent = !student.present;
     try {
@@ -68,13 +325,11 @@ export default function TeacherDashboard() {
     } catch { showToast('❌ فشل تحديث الحضور'); }
   };
 
-  // Update student in state after modal save
   const mutateStudent = (updated) => {
     setAllStu((prev) => prev.map((s) => s.id === updated.id ? updated : s));
     if (modalStudent?.id === updated.id) setModalStudent(updated);
   };
 
-  // Bulk: set meal for selected students
   const handleBulkMeal = async (mealId) => {
     const mealLabels = { breakfast: 'الفطار', lunch: 'الغداء', snack: 'السناك' };
     try {
@@ -89,7 +344,6 @@ export default function TeacherDashboard() {
     clearSelection();
   };
 
-  // Bulk: potty for selected students
   const handleBulkPotty = async () => {
     const now = new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
     try {
@@ -102,7 +356,6 @@ export default function TeacherDashboard() {
     clearSelection();
   };
 
-  // Bulk: mood for selected students
   const handleBulkMood = async (emoji) => {
     try {
       await Promise.all(selectedIds.map((id) => api.patch(`/teacher/students/${id}/mood`, { mood: emoji })));
@@ -142,8 +395,11 @@ export default function TeacherDashboard() {
       <main className="px-4 sm:px-6 py-5 pb-[120px] max-w-7xl mx-auto">
         <GlobalAcademicForm />
 
+        {/* Subjects Panel */}
+        <SubjectsPanel showToast={showToast} />
+
         {/* Attendance Quick Toggle Banner */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mt-5 mb-3">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-3">
           <p className="text-xs font-bold text-gray-500 mb-3 flex items-center gap-1.5">
             📋 سجّل الحضور والغياب بضغطة واحدة
           </p>

@@ -162,9 +162,19 @@ router.patch('/students/:id/medication', ...guard, async (req, res) => {
 // ── PATCH /api/teacher/students/:id/note ──────────────────────
 router.patch('/students/:id/note', ...guard, async (req, res) => {
   try {
+    const noteText = req.body.note || '';
     const client = await db.connect();
     try {
-      const { rows } = await upsertReport(client, req.params.id, { note: req.body.note || '' });
+      // 1. Upsert into daily_reports (shows in Daily Report tab)
+      const { rows } = await upsertReport(client, req.params.id, { note: noteText });
+      // 2. If note is non-empty, also insert into notes table (shows in Notes tab for parents)
+      if (noteText.trim()) {
+        await client.query(
+          `INSERT INTO notes (student_id, from_role, from_name, text)
+           VALUES ($1, 'teacher', $2, $3)`,
+          [req.params.id, req.user.name, noteText.trim()]
+        );
+      }
       res.json(rows[0]);
     } finally { client.release(); }
   } catch (err) { res.status(500).json({ error: 'خطأ في تحديث الملاحظة' }); }
@@ -195,4 +205,85 @@ router.post('/notes/:studentId', ...guard, async (req, res) => {
   } catch (err) { res.status(500).json({ error: 'خطأ في إضافة الملاحظة' }); }
 });
 
+// ── GET /api/teacher/subjects ─────────────────────────────────
+// Returns subjects for the teacher's class
+router.get('/subjects', ...guard, async (req, res) => {
+  try {
+    const { classId } = req.user;
+    if (!classId) return res.status(400).json({ error: 'لم يتم تعيين فصل لهذه المعلمة' });
+    const { rows } = await db.query(
+      'SELECT * FROM class_subjects WHERE class_id = $1 ORDER BY created_at',
+      [classId]
+    );
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: 'خطأ في جلب المواد' }); }
+});
+
+// ── POST /api/teacher/subjects ────────────────────────────────
+router.post('/subjects', ...guard, async (req, res) => {
+  try {
+    const { classId } = req.user;
+    const { name, icon, color } = req.body;
+    if (!name) return res.status(400).json({ error: 'اسم المادة مطلوب' });
+    const { rows } = await db.query(
+      `INSERT INTO class_subjects (class_id, name, icon, color)
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [classId, name, icon || '📚', color || 'blue']
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ error: 'هذه المادة موجودة بالفعل' });
+    res.status(500).json({ error: 'خطأ في إضافة المادة' });
+  }
+});
+
+// ── DELETE /api/teacher/subjects/:id ──────────────────────────
+router.delete('/subjects/:id', ...guard, async (req, res) => {
+  try {
+    await db.query('DELETE FROM class_subjects WHERE id = $1', [req.params.id]);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: 'خطأ في حذف المادة' }); }
+});
+
+// ── GET /api/teacher/daily-subjects ───────────────────────────
+// Returns today's log for all subjects in teacher's class
+router.get('/daily-subjects', ...guard, async (req, res) => {
+  try {
+    const { classId } = req.user;
+    if (!classId) return res.status(400).json({ error: 'لم يتم تعيين فصل' });
+    const { rows } = await db.query(
+      `SELECT cs.id, cs.name, cs.icon, cs.color,
+              COALESCE(dsl.taught, false) AS taught,
+              COALESCE(dsl.assignment, '') AS assignment
+       FROM class_subjects cs
+       LEFT JOIN daily_subject_log dsl
+         ON dsl.subject_id = cs.id AND dsl.log_date = CURRENT_DATE
+       WHERE cs.class_id = $1
+       ORDER BY cs.created_at`,
+      [classId]
+    );
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: 'خطأ في جلب مواد اليوم' }); }
+});
+
+// ── POST /api/teacher/daily-subjects ─────────────────────────
+// Upsert: mark a subject as taught today and/or set its assignment
+router.post('/daily-subjects', ...guard, async (req, res) => {
+  try {
+    const { classId } = req.user;
+    const { subjectId, taught, assignment } = req.body;
+    if (!subjectId) return res.status(400).json({ error: 'معرف المادة مطلوب' });
+    const { rows } = await db.query(
+      `INSERT INTO daily_subject_log (subject_id, class_id, log_date, taught, assignment)
+       VALUES ($1, $2, CURRENT_DATE, $3, $4)
+       ON CONFLICT (subject_id, log_date) DO UPDATE
+         SET taught = $3, assignment = $4
+       RETURNING *`,
+      [subjectId, classId, !!taught, assignment || '']
+    );
+    res.json(rows[0]);
+  } catch (err) { res.status(500).json({ error: 'خطأ في تحديث مادة اليوم' }); }
+});
+
 module.exports = router;
+

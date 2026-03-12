@@ -117,4 +117,32 @@ router.post('/notes', ...guard, async (req, res) => {
   } catch (err) { res.status(500).json({ error: 'خطأ في إرسال الملاحظة' }); }
 });
 
+// ── GET /api/parent/daily-subjects ────────────────────────────
+// Returns today's subject log for the child's class
+router.get('/daily-subjects', ...guard, async (req, res) => {
+  try {
+    const { childId } = req.user;
+    if (!childId) return res.status(404).json({ error: 'لم يتم ربط طفل بهذا الحساب' });
+
+    // Get the child's class
+    const childRes = await db.query('SELECT class_id FROM students WHERE id = $1', [childId]);
+    const classId  = childRes.rows[0]?.class_id;
+    if (!classId) return res.json([]);
+
+    const { rows } = await db.query(
+      `SELECT cs.id, cs.name, cs.icon, cs.color,
+              COALESCE(dsl.taught, false) AS taught,
+              COALESCE(dsl.assignment, '') AS assignment
+       FROM class_subjects cs
+       LEFT JOIN daily_subject_log dsl
+         ON dsl.subject_id = cs.id AND dsl.log_date = CURRENT_DATE
+       WHERE cs.class_id = $1
+       ORDER BY cs.created_at`,
+      [classId]
+    );
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: 'خطأ في جلب مواد اليوم' }); }
+});
+
 module.exports = router;
+

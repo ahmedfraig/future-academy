@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   BookOpen, Utensils, Baby, Heart, Star, ChevronDown, ChevronUp,
-  Clock, ChevronRight, ChevronLeft, Timer
+  Clock, ChevronRight, ChevronLeft, Timer, ClipboardList
 } from 'lucide-react';
 import api from '../../services/api';
 
@@ -154,19 +154,74 @@ function formatLongDate(dateStr) {
   return d.toLocaleDateString('ar-SA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 }
 
+const subjectBg = {
+  blue:    'bg-blue-50 border-blue-200',
+  emerald: 'bg-emerald-50 border-emerald-200',
+  violet:  'bg-violet-50 border-violet-200',
+  sky:     'bg-sky-50 border-sky-200',
+  pink:    'bg-pink-50 border-pink-200',
+  amber:   'bg-amber-50 border-amber-200',
+  red:     'bg-red-50 border-red-200',
+};
+
+function SubjectsSection({ subjects }) {
+  if (!subjects || subjects.length === 0)
+    return <p className="text-sm text-gray-400 text-center py-2">لم يتم إضافة مواد لهذا اليوم</p>;
+
+  const taught    = subjects.filter((s) => s.taught);
+  const notTaught = subjects.filter((s) => !s.taught);
+
+  return (
+    <div className="flex flex-col gap-3">
+      {taught.map((s) => {
+        const bg = subjectBg[s.color] || subjectBg.blue;
+        return (
+          <div key={s.id} className={`rounded-2xl border p-4 ${bg}`}>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-lg">{s.icon}</span>
+              <span className="font-bold text-gray-800 text-sm">{s.name}</span>
+              <span className="mr-auto text-xs bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded-full">✅ تم التدريس</span>
+            </div>
+            {s.assignment ? (
+              <div className="mt-2 bg-white/70 rounded-xl px-3 py-2">
+                <p className="text-xs font-bold text-gray-500 mb-0.5">📝 الواجب المنزلي</p>
+                <p className="text-sm text-gray-700 font-medium">{s.assignment}</p>
+              </div>
+            ) : (
+              <p className="text-xs text-gray-400 mt-1">لا يوجد واجب</p>
+            )}
+          </div>
+        );
+      })}
+      {notTaught.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {notTaught.map((s) => (
+            <span key={s.id} className="text-xs text-gray-400 bg-gray-50 border border-gray-200 rounded-xl px-3 py-1.5 font-medium">
+              {s.icon} {s.name}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function DailyReportPage() {
-  const [reports, setReports]       = useState([]);
+  const [reports, setReports]         = useState([]);
   const [selectedIdx, setSelectedIdx] = useState(0);
-  const [loading, setLoading]       = useState(true);
+  const [loading, setLoading]         = useState(true);
+  const [subjects, setSubjects]       = useState([]);
 
   useEffect(() => {
     api.get('/parent/reports', { params: { limit: 30 } })
-      .then(({ data }) => {
-        setReports(data);
-        setSelectedIdx(0);
-      })
+      .then(({ data }) => { setReports(data); setSelectedIdx(0); })
       .catch(() => {})
       .finally(() => setLoading(false));
+
+    // Fetch today's subjects for the child's class
+    api.get('/parent/daily-subjects')
+      .then(({ data }) => setSubjects(data))
+      .catch(() => {});
   }, []);
 
   const prev = () => setSelectedIdx((i) => Math.min(i + 1, reports.length - 1));
@@ -242,6 +297,11 @@ export default function DailyReportPage() {
           <p className="text-sm text-gray-700">{report.note}</p>
         </div>
       )}
+
+      {/* Subjects & Assignments for today */}
+      <SectionCard icon={<BookOpen size={18}/>} title="مواد اليوم والواجبات" color="blue">
+        <SubjectsSection subjects={subjects} />
+      </SectionCard>
 
       <SectionCard icon={<Utensils size={18}/>} title="الطعام والوجبات" color="green">
         <MealsSection meals={report?.meals} />

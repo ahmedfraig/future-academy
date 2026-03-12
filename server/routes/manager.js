@@ -380,4 +380,15 @@ router.post('/teachers/:id/generate-code', ...guard, async (req, res) => {
   }
 });
 
+// ── GET /api/manager/students/:id/notes ──────────────────────
+router.get('/students/:id/notes', ...guard, async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      'SELECT * FROM notes WHERE student_id = $1 ORDER BY created_at DESC',
+      [req.params.id]
+    );
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: 'خطأ في جلب الملاحظات' }); }
+});
+
 module.exports = router;

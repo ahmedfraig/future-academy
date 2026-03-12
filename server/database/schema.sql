@@ -100,6 +100,31 @@ CREATE TABLE IF NOT EXISTS activity_log (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- ── CLASS SUBJECTS ────────────────────────────────────────────
+-- Subjects configured for each class (e.g. Math, Arabic, Art…)
+CREATE TABLE IF NOT EXISTS class_subjects (
+  id         SERIAL PRIMARY KEY,
+  class_id   TEXT    NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
+  name       TEXT    NOT NULL,
+  icon       TEXT    NOT NULL DEFAULT '📚',
+  color      TEXT    NOT NULL DEFAULT 'blue',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (class_id, name)
+);
+
+-- ── DAILY SUBJECT LOG ─────────────────────────────────────────
+-- One row per subject per day — marks it as taught and stores assignment
+CREATE TABLE IF NOT EXISTS daily_subject_log (
+  id          SERIAL PRIMARY KEY,
+  subject_id  INTEGER NOT NULL REFERENCES class_subjects(id) ON DELETE CASCADE,
+  class_id    TEXT    NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
+  log_date    DATE    NOT NULL DEFAULT CURRENT_DATE,
+  taught      BOOLEAN NOT NULL DEFAULT false,
+  assignment  TEXT    NOT NULL DEFAULT '',
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (subject_id, log_date)
+);
+
 -- ── INDEXES FOR PERFORMANCE ───────────────────────────────────
 CREATE INDEX IF NOT EXISTS idx_users_email          ON users(email);
 CREATE INDEX IF NOT EXISTS idx_students_class_id    ON students(class_id);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Pencil, Trash2, CheckCircle, XCircle, KeyRound, Copy, X } from 'lucide-react';
+import { Search, Plus, Pencil, Trash2, CheckCircle, XCircle, KeyRound, Copy, X, MessageSquare } from 'lucide-react';
 import api from '../../services/api';
 import { ConfirmDialog, FormModal, Field, inputCls, selectCls } from './shared/SharedComponents';
 
@@ -18,8 +18,9 @@ export default function StudentsManager() {
   const [confirmId, setConfirmId] = useState(null);
   const [toast, setToast]       = useState('');
   const [saving, setSaving]     = useState(false);
-  const [inviteModal, setInviteModal] = useState(null); // { name, code }
+  const [inviteModal, setInviteModal] = useState(null);
   const [generatingId, setGeneratingId] = useState(null);
+  const [notesPanel, setNotesPanel] = useState(null); // { studentName, notes, loading }
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 2500); };
 
@@ -32,6 +33,17 @@ export default function StudentsManager() {
       showToast('❌ فشل توليد رمز الدعوة');
     } finally {
       setGeneratingId(null);
+    }
+  };
+
+  const openNotes = async (student) => {
+    setNotesPanel({ studentName: student.name, notes: [], loading: true });
+    try {
+      const { data } = await api.get(`/manager/students/${student.id}/notes`);
+      setNotesPanel({ studentName: student.name, notes: data, loading: false });
+    } catch {
+      setNotesPanel({ studentName: student.name, notes: [], loading: false });
+      showToast('❌ فشل تحميل الملاحظات');
     }
   };
 
@@ -234,8 +246,12 @@ export default function StudentsManager() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex gap-1.5">
+                      <button onClick={() => openNotes(s)}
+                        className="w-8 h-8 bg-purple-50 hover:bg-purple-100 rounded-xl flex items-center justify-center transition-colors" title="رسائل ولي الأمر">
+                        <MessageSquare size={13} className="text-purple-600" />
+                      </button>
                       <button onClick={() => generateCode(s)} disabled={generatingId === s.id}
-                        className="w-8 h-8 bg-amber-50 hover:bg-amber-100 rounded-xl flex items-center justify-center transition-colors disabled:opacity-40" title="توليد رمز دعوة لولي الأمر">
+                        className="w-8 h-8 bg-amber-50 hover:bg-amber-100 rounded-xl flex items-center justify-center transition-colors disabled:opacity-40" title="توليد رمز دعوة">
                         {generatingId === s.id
                           ? <span className="animate-spin text-xs">⟳</span>
                           : <KeyRound size={13} className="text-amber-600" />}
@@ -311,6 +327,44 @@ export default function StudentsManager() {
         onConfirm={handleDelete}
         onCancel={() => setConfirmId(null)}
       />
+
+      {/* Notes Panel */}
+      {notesPanel && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" dir="rtl">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md flex flex-col max-h-[80vh]" style={{ fontFamily: 'Cairo, sans-serif' }}>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <MessageSquare size={18} className="text-purple-600" />
+                <h3 className="font-black text-gray-800">رسائل {notesPanel.studentName}</h3>
+              </div>
+              <button onClick={() => setNotesPanel(null)} className="w-8 h-8 bg-gray-100 rounded-xl flex items-center justify-center hover:bg-gray-200">
+                <X size={14} className="text-gray-500" />
+              </button>
+            </div>
+            <div className="overflow-y-auto flex-1 px-6 py-4 flex flex-col gap-3">
+              {notesPanel.loading ? (
+                <p className="text-sm text-gray-400 text-center py-6">جاري التحميل...</p>
+              ) : notesPanel.notes.length === 0 ? (
+                <p className="text-sm text-gray-400 text-center py-6">لا توجد رسائل بعد</p>
+              ) : notesPanel.notes.map((n) => (
+                <div key={n.id} className={`rounded-2xl p-4 border ${n.from_role === 'parent' ? 'bg-blue-50 border-blue-100' : 'bg-purple-50 border-purple-100'}`}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xs font-black px-2 py-0.5 rounded-full"
+                      style={{ background: n.from_role === 'parent' ? '#dbeafe' : '#ede9fe', color: n.from_role === 'parent' ? '#1d4ed8' : '#6d28d9' }}>
+                      {n.from_role === 'parent' ? 'دولي الأمر' : 'معلمة'}
+                    </span>
+                    <span className="text-xs text-gray-500">{n.from_name}</span>
+                    <span className="text-xs text-gray-400 mr-auto">
+                      {new Date(n.created_at).toLocaleDateString('ar-SA', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-700 leading-relaxed">{n.text}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Invite Code Modal */}
       {inviteModal && (
