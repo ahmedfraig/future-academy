@@ -162,23 +162,38 @@ router.patch('/students/:id/medication', ...guard, async (req, res) => {
 // ── PATCH /api/teacher/students/:id/note ──────────────────────
 router.patch('/students/:id/note', ...guard, async (req, res) => {
   try {
-    const noteText = req.body.note || '';
+    const noteText = (req.body.note || '').trim();
+    const studentId = req.params.id;
     const client = await db.connect();
     try {
       // 1. Upsert into daily_reports (shows in Daily Report tab)
-      const { rows } = await upsertReport(client, req.params.id, { note: noteText });
-      // 2. If note is non-empty, also insert into notes table (shows in Notes tab for parents)
-      if (noteText.trim()) {
+      const { rows } = await upsertReport(client, studentId, { note: noteText });
+
+      // 2. Also write to notes table (shows in parent's Notes tab)
+      //    Deduplicate: only insert if the same text wasn't already saved today
+      //    by this teacher for this student
+      if (noteText) {
         await client.query(
           `INSERT INTO notes (student_id, from_role, from_name, text)
-           VALUES ($1, 'teacher', $2, $3)`,
-          [req.params.id, req.user.name, noteText.trim()]
+           SELECT $1, 'teacher', $2, $3
+           WHERE NOT EXISTS (
+             SELECT 1 FROM notes
+             WHERE student_id = $1
+               AND from_role = 'teacher'
+               AND text = $3
+               AND DATE(created_at AT TIME ZONE 'UTC') = CURRENT_DATE
+           )`,
+          [studentId, req.user.name, noteText]
         );
       }
       res.json(rows[0]);
     } finally { client.release(); }
-  } catch (err) { res.status(500).json({ error: 'خطأ في تحديث الملاحظة' }); }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'خطأ في تحديث الملاحظة' });
+  }
 });
+
 
 // ── GET /api/teacher/notes/:studentId ─────────────────────────
 router.get('/notes/:studentId', ...guard, async (req, res) => {
