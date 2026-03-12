@@ -1,0 +1,19 @@
+# Render.com deployment configuration
+# Deploys the Express backend as a Web Service
+
+services:
+  - type: web
+    name: future-academy-api
+    runtime: node
+    rootDir: server
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: JWT_SECRET
+        sync: false        # Set manually in Render dashboard
+      - key: DATABASE_URL
+        sync: false        # Set manually in Render dashboard (your Supabase URL)
