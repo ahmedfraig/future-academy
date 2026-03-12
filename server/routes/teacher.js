@@ -268,8 +268,9 @@ router.get('/daily-subjects', ...guard, async (req, res) => {
     if (!classId) return res.status(400).json({ error: 'لم يتم تعيين فصل' });
     const { rows } = await db.query(
       `SELECT cs.id, cs.name, cs.icon, cs.color,
-              COALESCE(dsl.taught, false) AS taught,
-              COALESCE(dsl.assignment, '') AS assignment
+              COALESCE(dsl.taught, false)        AS taught,
+              COALESCE(dsl.lesson_topic, '')     AS lesson_topic,
+              COALESCE(dsl.assignment, '')        AS assignment
        FROM class_subjects cs
        LEFT JOIN daily_subject_log dsl
          ON dsl.subject_id = cs.id AND dsl.log_date = CURRENT_DATE
@@ -282,19 +283,19 @@ router.get('/daily-subjects', ...guard, async (req, res) => {
 });
 
 // ── POST /api/teacher/daily-subjects ─────────────────────────
-// Upsert: mark a subject as taught today and/or set its assignment
+// Upsert: mark a subject as taught today, set lesson_topic, and/or assignment
 router.post('/daily-subjects', ...guard, async (req, res) => {
   try {
     const { classId } = req.user;
-    const { subjectId, taught, assignment } = req.body;
+    const { subjectId, taught, lessonTopic, assignment } = req.body;
     if (!subjectId) return res.status(400).json({ error: 'معرف المادة مطلوب' });
     const { rows } = await db.query(
-      `INSERT INTO daily_subject_log (subject_id, class_id, log_date, taught, assignment)
-       VALUES ($1, $2, CURRENT_DATE, $3, $4)
+      `INSERT INTO daily_subject_log (subject_id, class_id, log_date, taught, lesson_topic, assignment)
+       VALUES ($1, $2, CURRENT_DATE, $3, $4, $5)
        ON CONFLICT (subject_id, log_date) DO UPDATE
-         SET taught = $3, assignment = $4
+         SET taught = $3, lesson_topic = $4, assignment = $5
        RETURNING *`,
-      [subjectId, classId, !!taught, assignment || '']
+      [subjectId, classId, !!taught, lessonTopic || '', assignment || '']
     );
     res.json(rows[0]);
   } catch (err) { res.status(500).json({ error: 'خطأ في تحديث مادة اليوم' }); }

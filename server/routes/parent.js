@@ -131,8 +131,9 @@ router.get('/daily-subjects', ...guard, async (req, res) => {
 
     const { rows } = await db.query(
       `SELECT cs.id, cs.name, cs.icon, cs.color,
-              COALESCE(dsl.taught, false) AS taught,
-              COALESCE(dsl.assignment, '') AS assignment
+              COALESCE(dsl.taught, false)    AS taught,
+              COALESCE(dsl.lesson_topic, '') AS lesson_topic,
+              COALESCE(dsl.assignment, '')   AS assignment
        FROM class_subjects cs
        LEFT JOIN daily_subject_log dsl
          ON dsl.subject_id = cs.id AND dsl.log_date = CURRENT_DATE

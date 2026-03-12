@@ -177,20 +177,27 @@ function SubjectsSection({ subjects }) {
         const bg = subjectBg[s.color] || subjectBg.blue;
         return (
           <div key={s.id} className={`rounded-2xl border p-4 ${bg}`}>
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-center gap-2 mb-2">
               <span className="text-lg">{s.icon}</span>
               <span className="font-bold text-gray-800 text-sm">{s.name}</span>
               <span className="mr-auto text-xs bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded-full">✅ تم التدريس</span>
             </div>
+            {s.lesson_topic && (
+              <div className="bg-white/80 rounded-xl px-3 py-2 mb-2">
+                <p className="text-[10px] font-bold text-gray-400 mb-0.5">📖 ماذا تعلم اليوم</p>
+                <p className="text-sm text-gray-800 font-semibold">{s.lesson_topic}</p>
+              </div>
+            )}
             {s.assignment ? (
-              <div className="mt-2 bg-white/70 rounded-xl px-3 py-2">
-                <p className="text-xs font-bold text-gray-500 mb-0.5">📝 الواجب المنزلي</p>
+              <div className="bg-white/70 rounded-xl px-3 py-2">
+                <p className="text-[10px] font-bold text-gray-400 mb-0.5">📝 الواجب المنزلي</p>
                 <p className="text-sm text-gray-700 font-medium">{s.assignment}</p>
               </div>
             ) : (
-              <p className="text-xs text-gray-400 mt-1">لا يوجد واجب</p>
+              !s.lesson_topic && <p className="text-xs text-gray-400 mt-1">لا يوجد واجب</p>
             )}
           </div>
+
         );
       })}
       {notTaught.length > 0 && (

@@ -46,16 +46,22 @@ function SubjectsPanel({ showToast }) {
   const [newIcon, setNewIcon]           = useState('📚');
   const [newColor, setNewColor]         = useState('blue');
   const [saving, setSaving]             = useState(false);
-  const [assignmentInputs, setAssignmentInputs] = useState({});
+  const [assignmentInputs, setAssignmentInputs]   = useState({});
+  const [lessonTopicInputs, setLessonTopicInputs] = useState({});
 
   const fetchSubjects = useCallback(async () => {
     try {
       const { data } = await api.get('/teacher/daily-subjects');
       setSubjects(data);
-      // Init assignment inputs from current data
-      const incoming = {};
-      data.forEach((s) => { incoming[s.id] = s.assignment || ''; });
-      setAssignmentInputs(incoming);
+      // Init both inputs from current data
+      const incomingAssign = {};
+      const incomingTopic  = {};
+      data.forEach((s) => {
+        incomingAssign[s.id] = s.assignment   || '';
+        incomingTopic[s.id]  = s.lesson_topic || '';
+      });
+      setAssignmentInputs(incomingAssign);
+      setLessonTopicInputs(incomingTopic);
     } catch {
       showToast('❌ فشل تحميل المواد');
     } finally { setLoading(false); }
@@ -65,31 +71,35 @@ function SubjectsPanel({ showToast }) {
 
   const toggleTaught = async (subject) => {
     const newTaught = !subject.taught;
-    // Optimistic update
     setSubjects((prev) => prev.map((s) => s.id === subject.id ? { ...s, taught: newTaught } : s));
     try {
       await api.post('/teacher/daily-subjects', {
-        subjectId: subject.id,
-        taught: newTaught,
-        assignment: assignmentInputs[subject.id] || subject.assignment || '',
+        subjectId:   subject.id,
+        taught:      newTaught,
+        lessonTopic: lessonTopicInputs[subject.id] || subject.lesson_topic || '',
+        assignment:  assignmentInputs[subject.id]  || subject.assignment    || '',
       });
     } catch {
-      // Rollback
       setSubjects((prev) => prev.map((s) => s.id === subject.id ? { ...s, taught: subject.taught } : s));
       showToast('❌ فشل تحديث المادة');
     }
   };
 
-  const saveAssignment = async (subject) => {
+  const saveSubjectDetails = async (subject) => {
     try {
       await api.post('/teacher/daily-subjects', {
-        subjectId: subject.id,
-        taught: subject.taught,
-        assignment: assignmentInputs[subject.id] || '',
+        subjectId:   subject.id,
+        taught:      subject.taught,
+        lessonTopic: lessonTopicInputs[subject.id] || '',
+        assignment:  assignmentInputs[subject.id]  || '',
       });
-      setSubjects((prev) => prev.map((s) => s.id === subject.id ? { ...s, assignment: assignmentInputs[subject.id] } : s));
-      showToast('✅ تم حفظ الواجب');
-    } catch { showToast('❌ فشل حفظ الواجب'); }
+      setSubjects((prev) => prev.map((s) =>
+        s.id === subject.id
+          ? { ...s, lesson_topic: lessonTopicInputs[s.id], assignment: assignmentInputs[s.id] }
+          : s
+      ));
+      showToast('✅ تم الحفظ');
+    } catch { showToast('❌ فشل الحفظ'); }
   };
 
   const handleAddSubject = async () => {
@@ -183,32 +193,53 @@ function SubjectsPanel({ showToast }) {
                         <Trash2 size={13} />
                       </button>
                     </div>
-                    {/* Assignment input */}
+                    {/* Lesson Topic + Assignment inputs (shown when marked as taught) */}
                     {s.taught && (
-                      <div className="mt-2 flex gap-2">
-                        <input
-                          type="text"
-                          value={assignmentInputs[s.id] ?? ''}
-                          onChange={(e) => setAssignmentInputs((prev) => ({ ...prev, [s.id]: e.target.value }))}
-                          placeholder="📝 الواجب المنزلي (اختياري)..."
-                          className="flex-1 bg-white/70 border border-gray-200 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-indigo-400"
-                          style={{ fontFamily: 'Cairo, sans-serif' }}
-                        />
+                      <div className="mt-3 flex flex-col gap-2">
+                        {/* What was taught */}
+                        <div>
+                          <p className="text-[10px] font-bold text-gray-400 mb-1 pr-1">📖 ماذا درسنا اليوم؟</p>
+                          <input
+                            type="text"
+                            value={lessonTopicInputs[s.id] ?? ''}
+                            onChange={(e) => setLessonTopicInputs((prev) => ({ ...prev, [s.id]: e.target.value }))}
+                            placeholder="مثال: الأعداد من 1 إلى 10، أو حرف الألف..."
+                            className="w-full bg-white/80 border border-gray-200 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-indigo-400"
+                            style={{ fontFamily: 'Cairo, sans-serif' }}
+                          />
+                        </div>
+                        {/* Homework assignment */}
+                        <div>
+                          <p className="text-[10px] font-bold text-gray-400 mb-1 pr-1">📝 الواجب المنزلي (اختياري)</p>
+                          <input
+                            type="text"
+                            value={assignmentInputs[s.id] ?? ''}
+                            onChange={(e) => setAssignmentInputs((prev) => ({ ...prev, [s.id]: e.target.value }))}
+                            placeholder="مثال: حل صفحة 5 من الكتاب..."
+                            className="w-full bg-white/80 border border-gray-200 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-indigo-400"
+                            style={{ fontFamily: 'Cairo, sans-serif' }}
+                          />
+                        </div>
                         <button
-                          onClick={() => saveAssignment(s)}
-                          className="text-xs font-bold bg-indigo-500 text-white px-3 py-1.5 rounded-xl hover:bg-indigo-600 transition-all whitespace-nowrap"
+                          onClick={() => saveSubjectDetails(s)}
+                          className="w-full text-xs font-bold bg-indigo-500 text-white py-1.5 rounded-xl hover:bg-indigo-600 transition-all"
                         >
-                          حفظ
+                          💾 حفظ
                         </button>
                       </div>
                     )}
-                    {s.assignment && !s.taught && (
-                      <p className="text-xs text-gray-400 mt-1 pr-11">📝 {s.assignment}</p>
+                    {/* Show saved lesson_topic/assignment when not taught */}
+                    {!s.taught && (s.lesson_topic || s.assignment) && (
+                      <div className="mt-1 pr-11 flex flex-col gap-0.5">
+                        {s.lesson_topic && <p className="text-xs text-gray-400">📖 {s.lesson_topic}</p>}
+                        {s.assignment   && <p className="text-xs text-gray-400">📝 {s.assignment}</p>}
+                      </div>
                     )}
                   </div>
                 );
               })}
             </div>
+
           )}
 
           {/* Add Subject Form */}
