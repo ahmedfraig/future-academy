@@ -64,10 +64,11 @@ function MealsSection({ meals }) {
 }
 
 function PottySection({ potty }) {
-  if (!potty?.length) return <p className="text-gray-400 text-sm text-center py-2">لا توجد سجلات</p>;
+  const list = Array.isArray(potty) ? potty : [];
+  if (!list.length) return <p className="text-gray-400 text-sm text-center py-2">لا توجد سجلات</p>;
   return (
     <div className="flex flex-wrap gap-2">
-      {potty.map((t, i) => (
+      {list.map((t, i) => (
         <span key={i} className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 text-amber-700 text-sm font-bold px-3 py-1.5 rounded-xl">
           <Clock size={13}/> {t}
         </span>
@@ -78,26 +79,35 @@ function PottySection({ potty }) {
 
 function BehaviorSection({ behavior }) {
   if (!behavior) return <p className="text-sm text-gray-400">لا توجد بيانات سلوك</p>;
-  // behavior can be an object {withPeers, withTeachers, overall} or a string
+
+  // behavior is stored as TEXT in DB — it may arrive as a JSON string or a plain mood string
+  let parsed = behavior;
   if (typeof behavior === 'string') {
-    const moodMap = { 'ممتاز 🌟': 'bg-emerald-100 text-emerald-700', 'جيد 😊': 'bg-blue-100 text-blue-700', 'عادي 😐': 'bg-amber-100 text-amber-700', 'يحتاج دعم 💛': 'bg-yellow-100 text-yellow-700', 'صعب 😟': 'bg-red-100 text-red-700' };
-    return <span className={`text-sm font-bold px-4 py-1.5 rounded-xl ${moodMap[behavior] || 'bg-gray-100 text-gray-600'}`}>{behavior}</span>;
+    try { parsed = JSON.parse(behavior); } catch (_) { /* not JSON — treat as mood string */ }
   }
+
+  // Plain mood string (e.g. 'ممتاز 🌟')
+  if (typeof parsed === 'string') {
+    const moodMap = { 'ممتاز 🌟': 'bg-emerald-100 text-emerald-700', 'جيد 😊': 'bg-blue-100 text-blue-700', 'عادي 😐': 'bg-amber-100 text-amber-700', 'يحتاج دعم 💛': 'bg-yellow-100 text-yellow-700', 'صعب 😟': 'bg-red-100 text-red-700' };
+    return <span className={`text-sm font-bold px-4 py-1.5 rounded-xl ${moodMap[parsed] || 'bg-gray-100 text-gray-600'}`}>{parsed}</span>;
+  }
+
+  // Object {withPeers, withTeachers, overall}
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between bg-pink-50 rounded-2xl p-4">
         <div>
           <p className="text-xs text-gray-500 mb-1">مع الأصدقاء</p>
-          <StarRow value={behavior.withPeers || behavior.with_peers || 0} />
+          <StarRow value={parsed.withPeers || parsed.with_peers || 0} />
         </div>
         <div className="w-px h-10 bg-pink-200" />
         <div>
           <p className="text-xs text-gray-500 mb-1">مع المعلمات</p>
-          <StarRow value={behavior.withTeachers || behavior.with_teachers || 0} />
+          <StarRow value={parsed.withTeachers || parsed.with_teachers || 0} />
         </div>
       </div>
-      {behavior.overall && (
-        <span className="text-sm font-bold px-4 py-1.5 rounded-xl bg-pink-100 text-pink-700 self-start">{behavior.overall}</span>
+      {parsed.overall && (
+        <span className="text-sm font-bold px-4 py-1.5 rounded-xl bg-pink-100 text-pink-700 self-start">{parsed.overall}</span>
       )}
     </div>
   );
