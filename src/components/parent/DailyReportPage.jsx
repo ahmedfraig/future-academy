@@ -77,22 +77,46 @@ function PottySection({ potty }) {
   );
 }
 
+const BEHAVIOR_LABELS = ['ممتاز 🌟', 'جيد 😊', 'عادي 😐', 'يحتاج دعم 💛', 'صعب 😟'];
+const MOOD_COLORS = {
+  'ممتاز 🌟': 'bg-emerald-100 text-emerald-700',
+  'جيد 😊':   'bg-blue-100 text-blue-700',
+  'عادي 😐':  'bg-amber-100 text-amber-700',
+  'يحتاج دعم 💛': 'bg-yellow-100 text-yellow-700',
+  'صعب 😟':   'bg-red-100 text-red-700',
+};
+
+function safeParseOverall(val) {
+  if (!val) return null;
+  if (BEHAVIOR_LABELS.includes(val)) return val;
+  // val might be a nested JSON string — try to extract real overall from it
+  try {
+    const inner = JSON.parse(val);
+    if (inner && typeof inner === 'object' && inner.overall) {
+      return BEHAVIOR_LABELS.includes(inner.overall) ? inner.overall : null;
+    }
+  } catch (_) {}
+  return null; // unknown/corrupted — hide it
+}
+
 function BehaviorSection({ behavior }) {
   if (!behavior) return <p className="text-sm text-gray-400">لا توجد بيانات سلوك</p>;
 
-  // behavior is stored as TEXT in DB — it may arrive as a JSON string or a plain mood string
+  // behavior is stored as TEXT in DB — parse JSON string if needed
   let parsed = behavior;
   if (typeof behavior === 'string') {
-    try { parsed = JSON.parse(behavior); } catch (_) { /* not JSON — treat as mood string */ }
+    try { parsed = JSON.parse(behavior); } catch (_) { /* treat as plain mood string */ }
   }
 
-  // Plain mood string (e.g. 'ممتاز 🌟')
+  // Plain mood string (old format)
   if (typeof parsed === 'string') {
-    const moodMap = { 'ممتاز 🌟': 'bg-emerald-100 text-emerald-700', 'جيد 😊': 'bg-blue-100 text-blue-700', 'عادي 😐': 'bg-amber-100 text-amber-700', 'يحتاج دعم 💛': 'bg-yellow-100 text-yellow-700', 'صعب 😟': 'bg-red-100 text-red-700' };
-    return <span className={`text-sm font-bold px-4 py-1.5 rounded-xl ${moodMap[parsed] || 'bg-gray-100 text-gray-600'}`}>{parsed}</span>;
+    const label = BEHAVIOR_LABELS.includes(parsed) ? parsed : null;
+    if (!label) return <p className="text-sm text-gray-400">لا توجد بيانات سلوك</p>;
+    return <span className={`text-sm font-bold px-4 py-1.5 rounded-xl ${MOOD_COLORS[label]}`}>{label}</span>;
   }
 
   // Object {withPeers, withTeachers, overall}
+  const overall = safeParseOverall(parsed.overall);
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between bg-pink-50 rounded-2xl p-4">
@@ -106,8 +130,8 @@ function BehaviorSection({ behavior }) {
           <StarRow value={parsed.withTeachers || parsed.with_teachers || 0} />
         </div>
       </div>
-      {parsed.overall && (
-        <span className="text-sm font-bold px-4 py-1.5 rounded-xl bg-pink-100 text-pink-700 self-start">{parsed.overall}</span>
+      {overall && (
+        <span className={`text-sm font-bold px-4 py-1.5 rounded-xl self-start ${MOOD_COLORS[overall] || 'bg-pink-100 text-pink-700'}`}>{overall}</span>
       )}
     </div>
   );

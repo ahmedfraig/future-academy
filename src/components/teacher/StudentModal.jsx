@@ -46,12 +46,28 @@ export function StudentModal({ student, onClose, onSave }) {
   // behavior from DB is stored as a JSON string in a TEXT column — parse it before use
   const parsedBehavior = (() => {
     const b = student?.behavior;
-    if (!b) return { withPeers: 3, withTeachers: 3, overall: 'جيد 😊' };
-    if (typeof b === 'object') return b;
-    try { return JSON.parse(b); } catch (_) {
-      // plain mood string (old format) or other string — keep defaults
-      return { withPeers: 3, withTeachers: 3, overall: 'جيد 😊' };
+    const KNOWN = ['ممتاز 🌟', 'جيد 😊', 'عادي 😐', 'يحتاج دعم 💛', 'صعب 😟'];
+    const DEFAULT = { withPeers: 3, withTeachers: 3, overall: 'جيد 😊' };
+    if (!b) return DEFAULT;
+    let obj = b;
+    if (typeof b === 'string') {
+      try { obj = JSON.parse(b); } catch (_) { return DEFAULT; }
     }
+    if (typeof obj !== 'object' || obj === null) return DEFAULT;
+    // Sanitize overall: it might itself be a nested JSON string from double-save bug
+    let overall = obj.overall || 'جيد 😊';
+    if (!KNOWN.includes(overall)) {
+      // Try to extract from nested JSON string
+      try {
+        const inner = JSON.parse(overall);
+        overall = (inner && KNOWN.includes(inner.overall)) ? inner.overall : 'جيد 😊';
+      } catch (_) { overall = 'جيد 😊'; }
+    }
+    return {
+      withPeers:    typeof obj.withPeers === 'number'    ? obj.withPeers    : 3,
+      withTeachers: typeof obj.withTeachers === 'number' ? obj.withTeachers : 3,
+      overall,
+    };
   })();
 
   const [fields, setFields] = useState({
