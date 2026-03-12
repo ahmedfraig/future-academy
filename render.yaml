@@ -6,7 +6,7 @@ services:
     name: future-academy-api
     runtime: node
     rootDir: server
-    buildCommand: npm install
+    buildCommand: npm install --production
     startCommand: node server.js
     envVars:
       - key: NODE_ENV
