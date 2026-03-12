@@ -43,16 +43,25 @@ function StarRating({ value, onChange }) {
 
 // ── MAIN MODAL ────────────────────────────────
 export function StudentModal({ student, onClose, onSave }) {
+  // behavior from DB is stored as a JSON string in a TEXT column — parse it before use
+  const parsedBehavior = (() => {
+    const b = student?.behavior;
+    if (!b) return { withPeers: 3, withTeachers: 3, overall: 'جيد 😊' };
+    if (typeof b === 'object') return b;
+    try { return JSON.parse(b); } catch (_) {
+      // plain mood string (old format) or other string — keep defaults
+      return { withPeers: 3, withTeachers: 3, overall: 'جيد 😊' };
+    }
+  })();
+
   const [fields, setFields] = useState({
     note:        student?.note || '',
     medication:  student?.medication || false,
     mood:        student?.mood || null,
     arrivalTime: student?.arrival_time || student?.arrivalTime || '',
     meals:       student?.meals || {},
-    potty:       student?.potty || [],
-    behavior:    typeof student?.behavior === 'object' && student?.behavior !== null
-      ? student.behavior
-      : { withPeers: 3, withTeachers: 3, overall: student?.behavior || 'جيد 😊' },
+    potty:       Array.isArray(student?.potty) ? student.potty : [],
+    behavior:    parsedBehavior,
     temperament: student?.temperament || '',
     present:     student?.present ?? false,
   });
