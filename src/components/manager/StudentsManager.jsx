@@ -326,15 +326,6 @@ export default function StudentsManager() {
               {classes.map((c) => <option key={c.id} value={c.id}>{c.name} — {c.grade_level}</option>)}
             </select>
           </Field>
-          <Field label="اسم ولي الأمر">
-            <input name="parentName" value={form.parentName} onChange={handleChange} placeholder="الاسم الكامل" className={inputCls} style={{ fontFamily: 'Cairo, sans-serif' }} />
-          </Field>
-          <Field label="رقم الجوال">
-            <input name="phone" value={form.phone} onChange={handleChange} placeholder="05XXXXXXXX" className={inputCls} dir="ltr" maxLength={10} inputMode="numeric" />
-            {form.phone.length > 0 && !/^0\d{9}$/.test(form.phone) && (
-              <p className="text-xs text-amber-600 mt-1">يجب أن يكون 10 أرقام ويبدأ بـ 0</p>
-            )}
-          </Field>
         </div>
         <Field label="">
           <label className="flex items-center gap-2 cursor-pointer">

@@ -232,12 +232,6 @@ export default function TeachersManager() {
               {specOptions.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
           </Field>
-          <Field label="رقم الجوال">
-            <input name="phone" value={form.phone} onChange={handleChange} placeholder="05XXXXXXXX" className={inputCls} dir="ltr" maxLength={10} inputMode="numeric" />
-            {form.phone.length > 0 && !/^0\d{9}$/.test(form.phone) && (
-              <p className="text-xs text-amber-600 mt-1">يجب أن يكون 10 أرقام ويبدأ بـ 0</p>
-            )}
-          </Field>
 
         </div>
         <Field label="الفصول المعينة (يمكن تعديلها من صفحة التعيينات)">

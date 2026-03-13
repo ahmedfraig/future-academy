@@ -448,6 +448,14 @@ export default function LoginPage() {
               </>
             )}
           </div>
+
+          {/* Developer credit */}
+          <p className="text-center text-xs text-gray-400 mt-4">
+            تم التطوير بواسطة{' '}
+            <span className="font-bold text-gray-500">Ahmed Ismail</span>
+            {' · '}
+            <a href="tel:+201099635321" className="text-violet-500 hover:underline" dir="ltr">+201099635321</a>
+          </p>
         </div>
       </div>
     </div>

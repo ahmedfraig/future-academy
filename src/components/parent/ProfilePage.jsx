@@ -179,6 +179,13 @@ export default function ProfilePage() {
             );
           })}
         </div>
+
+        {/* Developer credit */}
+        <p className="text-center text-[10px] text-gray-300 mt-2 pb-1">
+          تم التطوير بواسطة <span className="font-bold">Ahmed Ismail</span>
+          {' · '}
+          <a href="tel:+201099635321" dir="ltr" className="hover:text-blue-400 transition-colors">+201099635321</a>
+        </p>
       </div>
 
       {modal === 'notif'    && <NotifSettingsModal onClose={() => setModal(null)} />}
