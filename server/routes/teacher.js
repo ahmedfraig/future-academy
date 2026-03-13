@@ -221,10 +221,10 @@ router.post('/notes/:studentId', ...guard, async (req, res) => {
 });
 
 // ── GET /api/teacher/subjects ─────────────────────────────────
-// Returns subjects for the teacher's class
+// Returns subjects for a class (classId from query or teacher's primary class)
 router.get('/subjects', ...guard, async (req, res) => {
   try {
-    const { classId } = req.user;
+    const classId = req.query.classId || req.user.classId;
     if (!classId) return res.status(400).json({ error: 'لم يتم تعيين فصل لهذه المعلمة' });
     const { rows } = await db.query(
       'SELECT * FROM class_subjects WHERE class_id = $1 ORDER BY created_at',
@@ -237,9 +237,11 @@ router.get('/subjects', ...guard, async (req, res) => {
 // ── POST /api/teacher/subjects ────────────────────────────────
 router.post('/subjects', ...guard, async (req, res) => {
   try {
-    const { classId } = req.user;
+    // Accept classId from body (active class on teacher's dashboard)
+    const classId = req.body.classId || req.user.classId;
     const { name, icon, color } = req.body;
-    if (!name) return res.status(400).json({ error: 'اسم المادة مطلوب' });
+    if (!name)    return res.status(400).json({ error: 'اسم المادة مطلوب' });
+    if (!classId) return res.status(400).json({ error: 'معرف الفصل مطلوب' });
     const { rows } = await db.query(
       `INSERT INTO class_subjects (class_id, name, icon, color)
        VALUES ($1, $2, $3, $4) RETURNING *`,
@@ -261,10 +263,10 @@ router.delete('/subjects/:id', ...guard, async (req, res) => {
 });
 
 // ── GET /api/teacher/daily-subjects ───────────────────────────
-// Returns today's log for all subjects in teacher's class
+// Returns today's log for all subjects in the specified class
 router.get('/daily-subjects', ...guard, async (req, res) => {
   try {
-    const { classId } = req.user;
+    const classId = req.query.classId || req.user.classId;
     if (!classId) return res.status(400).json({ error: 'لم يتم تعيين فصل' });
     const { rows } = await db.query(
       `SELECT cs.id, cs.name, cs.icon, cs.color,
@@ -286,9 +288,11 @@ router.get('/daily-subjects', ...guard, async (req, res) => {
 // Upsert: mark a subject as taught today, set lesson_topic, and/or assignment
 router.post('/daily-subjects', ...guard, async (req, res) => {
   try {
-    const { classId } = req.user;
+    // Accept classId from body (active class on teacher's dashboard)
+    const classId = req.body.classId || req.user.classId;
     const { subjectId, taught, lessonTopic, assignment } = req.body;
     if (!subjectId) return res.status(400).json({ error: 'معرف المادة مطلوب' });
+    if (!classId)   return res.status(400).json({ error: 'معرف الفصل مطلوب' });
     const { rows } = await db.query(
       `INSERT INTO daily_subject_log (subject_id, class_id, log_date, taught, lesson_topic, assignment)
        VALUES ($1, $2, CURRENT_DATE, $3, $4, $5)

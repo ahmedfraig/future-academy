@@ -37,7 +37,7 @@ const subjectBg = {
 };
 
 // ── SUBJECTS PANEL ────────────────────────────
-function SubjectsPanel({ showToast }) {
+function SubjectsPanel({ showToast, currentClass }) {
   const [subjects, setSubjects]         = useState([]);
   const [loading, setLoading]           = useState(true);
   const [expanded, setExpanded]         = useState(true);
@@ -49,9 +49,10 @@ function SubjectsPanel({ showToast }) {
   const [assignmentInputs, setAssignmentInputs]   = useState({});
   const [lessonTopicInputs, setLessonTopicInputs] = useState({});
 
-  const fetchSubjects = useCallback(async () => {
+  const fetchSubjects = useCallback(async (classId) => {
+    setLoading(true);
     try {
-      const { data } = await api.get('/teacher/daily-subjects');
+      const { data } = await api.get('/teacher/daily-subjects', { params: { classId } });
       setSubjects(data);
       // Init both inputs from current data
       const incomingAssign = {};
@@ -67,7 +68,8 @@ function SubjectsPanel({ showToast }) {
     } finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { fetchSubjects(); }, [fetchSubjects]);
+  // Re-fetch whenever the active class changes
+  useEffect(() => { if (currentClass) fetchSubjects(currentClass); }, [fetchSubjects, currentClass]);
 
   const toggleTaught = async (subject) => {
     const newTaught = !subject.taught;
@@ -75,6 +77,7 @@ function SubjectsPanel({ showToast }) {
     try {
       await api.post('/teacher/daily-subjects', {
         subjectId:   subject.id,
+        classId:     currentClass,
         taught:      newTaught,
         lessonTopic: lessonTopicInputs[subject.id] || subject.lesson_topic || '',
         assignment:  assignmentInputs[subject.id]  || subject.assignment    || '',
@@ -89,6 +92,7 @@ function SubjectsPanel({ showToast }) {
     try {
       await api.post('/teacher/daily-subjects', {
         subjectId:   subject.id,
+        classId:     currentClass,
         taught:      subject.taught,
         lessonTopic: lessonTopicInputs[subject.id] || '',
         assignment:  assignmentInputs[subject.id]  || '',
@@ -106,8 +110,8 @@ function SubjectsPanel({ showToast }) {
     if (!newName.trim()) return;
     setSaving(true);
     try {
-      await api.post('/teacher/subjects', { name: newName.trim(), icon: newIcon, color: newColor });
-      await fetchSubjects();
+      await api.post('/teacher/subjects', { name: newName.trim(), icon: newIcon, color: newColor, classId: currentClass });
+      await fetchSubjects(currentClass);
       setNewName(''); setNewIcon('📚'); setNewColor('blue'); setAddMode(false);
       showToast('✅ تمت إضافة المادة');
     } catch (err) {
@@ -426,8 +430,8 @@ export default function TeacherDashboard() {
       <main className="px-4 sm:px-6 py-5 pb-[120px] max-w-7xl mx-auto">
         <GlobalAcademicForm />
 
-        {/* Subjects Panel */}
-        <SubjectsPanel showToast={showToast} />
+        {/* Subjects Panel — scoped to the currently-active class */}
+        <SubjectsPanel showToast={showToast} currentClass={currentClass} />
 
         {/* Attendance Quick Toggle Banner */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-3">

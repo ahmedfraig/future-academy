@@ -139,19 +139,23 @@ function BehaviorSection({ behavior }) {
 
 function formatShortDate(dateStr) {
   if (!dateStr) return '';
-  const d = new Date(dateStr);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const diff = today - d;
-  if (diff < 86400000) return 'اليوم';
+  // Parse as LOCAL date (not UTC) to avoid off-by-one-day in UTC+ timezones
+  const raw = String(dateStr).slice(0, 10); // 'YYYY-MM-DD'
+  const [y, m, d] = raw.split('-').map(Number);
+  const dt   = new Date(y, m - 1, d);       // local midnight
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const diff  = today - dt;
+  if (diff < 86400000)  return 'اليوم';
   if (diff < 172800000) return 'أمس';
-  return d.toLocaleDateString('ar-SA', { month: 'short', day: 'numeric' });
+  return dt.toLocaleDateString('ar-SA', { month: 'short', day: 'numeric' });
 }
 
 function formatLongDate(dateStr) {
   if (!dateStr) return '';
-  const d = new Date(dateStr);
-  return d.toLocaleDateString('ar-SA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  const raw = String(dateStr).slice(0, 10);
+  const [y, m, d] = raw.split('-').map(Number);
+  const dt = new Date(y, m - 1, d);
+  return dt.toLocaleDateString('ar-SA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 }
 
 const subjectBg = {
@@ -219,17 +223,34 @@ export default function DailyReportPage() {
   const [loading, setLoading]         = useState(true);
   const [subjects, setSubjects]       = useState([]);
 
+  // Helper: extract 'YYYY-MM-DD' from a report regardless of whether
+  // report_date is a Date object, ISO string, or plain date string
+  const getDateStr = (report) => String(report?.report_date || '').slice(0, 10);
+
   useEffect(() => {
+    const todayStr = new Date().toISOString().slice(0, 10);
+
     api.get('/parent/reports', { params: { limit: 30 } })
-      .then(({ data }) => { setReports(data); setSelectedIdx(0); })
+      .then(({ data }) => {
+        // Ensure today's slot always exists
+        const hasToday = data.some((r) => getDateStr(r) === todayStr);
+        const list = hasToday ? data : [{ report_date: todayStr, present: false }, ...data];
+        setReports(list);
+        setSelectedIdx(0);
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
+  }, []);
 
-    // Fetch today's subjects for the child's class
-    api.get('/parent/daily-subjects')
+  // Re-fetch subjects whenever the selected report date changes
+  useEffect(() => {
+    const currentReport = reports[selectedIdx];
+    if (!currentReport) return;
+    const dateStr = getDateStr(currentReport);
+    api.get('/parent/daily-subjects', { params: { date: dateStr } })
       .then(({ data }) => setSubjects(data))
       .catch(() => {});
-  }, []);
+  }, [selectedIdx, reports]);
 
   const prev = () => setSelectedIdx((i) => Math.min(i + 1, reports.length - 1));
   const next = () => setSelectedIdx((i) => Math.max(i - 1, 0));

@@ -56,8 +56,9 @@ router.get('/child', ...guard, async (req, res) => {
   }
 });
 
-// ── GET /api/parent/reports ────────────────────────────────────
-// Historical daily reports for the parent's child (newest first)
+// ── GET /api/parent/reports ──────────────────────────────────
+// Historical daily reports for the parent's child (newest first).
+// Today's slot is always included even if the teacher hasn't logged anything.
 router.get('/reports', ...guard, async (req, res) => {
   try {
     const { childId } = req.user;
@@ -71,6 +72,20 @@ router.get('/reports', ...guard, async (req, res) => {
        LIMIT $2 OFFSET $3`,
       [childId, limit, offset]
     );
+
+    // Always ensure today's slot is present (even if no teacher data yet)
+    const todayStr = new Date().toISOString().slice(0, 10); // e.g. '2026-03-13'
+    const hasToday = rows.some((r) => {
+      const d = r.report_date instanceof Date
+        ? r.report_date.toISOString().slice(0, 10)
+        : String(r.report_date).slice(0, 10);
+      return d === todayStr;
+    });
+    if (!hasToday && offset === 0) {
+      // Prepend a synthetic empty placeholder for today
+      rows.unshift({ report_date: todayStr, student_id: childId, present: false });
+    }
+
     res.json(rows);
   } catch (err) { res.status(500).json({ error: 'خطأ في جلب التقارير' }); }
 });
@@ -117,8 +132,9 @@ router.post('/notes', ...guard, async (req, res) => {
   } catch (err) { res.status(500).json({ error: 'خطأ في إرسال الملاحظة' }); }
 });
 
-// ── GET /api/parent/daily-subjects ────────────────────────────
-// Returns today's subject log for the child's class
+// ── GET /api/parent/daily-subjects ───────────────────────────
+// Returns the subject log for the child's class on a given date.
+// Accepts optional ?date=YYYY-MM-DD param; defaults to today.
 router.get('/daily-subjects', ...guard, async (req, res) => {
   try {
     const { childId } = req.user;
@@ -129,6 +145,9 @@ router.get('/daily-subjects', ...guard, async (req, res) => {
     const classId  = childRes.rows[0]?.class_id;
     if (!classId) return res.json([]);
 
+    // Use requested date or fall back to today
+    const logDate = req.query.date || null; // e.g. '2026-03-12'
+
     const { rows } = await db.query(
       `SELECT cs.id, cs.name, cs.icon, cs.color,
               COALESCE(dsl.taught, false)    AS taught,
@@ -136,10 +155,11 @@ router.get('/daily-subjects', ...guard, async (req, res) => {
               COALESCE(dsl.assignment, '')   AS assignment
        FROM class_subjects cs
        LEFT JOIN daily_subject_log dsl
-         ON dsl.subject_id = cs.id AND dsl.log_date = CURRENT_DATE
+         ON dsl.subject_id = cs.id
+         AND dsl.log_date = COALESCE($2::date, CURRENT_DATE)
        WHERE cs.class_id = $1
        ORDER BY cs.created_at`,
-      [classId]
+      [classId, logDate]
     );
     res.json(rows);
   } catch (err) { res.status(500).json({ error: 'خطأ في جلب مواد اليوم' }); }
