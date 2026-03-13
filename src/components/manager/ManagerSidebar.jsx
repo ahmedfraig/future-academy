@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
-  LayoutDashboard, Users, School, GraduationCap, Link2, Megaphone, LogOut, ChevronLeft
+  LayoutDashboard, Users, School, GraduationCap, Link2, Megaphone, LogOut, ChevronLeft, KeyRound
 } from 'lucide-react';
 import { nurseryInfo } from '../../data/dummyData';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { ChangePasswordModal } from '../../pages/LoginPage';
 
 const navItems = [
   { id: 'overview',       icon: LayoutDashboard, label: 'لوحة المعلومات',  color: 'text-violet-600 bg-violet-100' },
@@ -18,6 +19,7 @@ const navItems = [
 export default function ManagerSidebar({ active, onNavigate }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [showChangePw, setShowChangePw] = useState(false);
   const handleLogout = () => { logout(); navigate('/login'); };
   return (
     <aside className="flex flex-col w-64 min-h-screen bg-white border-l border-gray-100 shadow-sm flex-shrink-0">
@@ -77,7 +79,13 @@ export default function ManagerSidebar({ active, onNavigate }) {
       </nav>
 
       {/* Footer */}
-      <div className="px-3 py-4 border-t border-gray-100">
+      <div className="px-3 py-4 border-t border-gray-100 flex flex-col gap-1">
+        <button onClick={() => setShowChangePw(true)} className="flex items-center gap-3 px-3 py-2.5 rounded-2xl hover:bg-violet-50 transition-all w-full text-violet-500 hover:text-violet-600">
+          <div className="w-8 h-8 rounded-xl bg-violet-50 flex items-center justify-center">
+            <KeyRound size={14} className="text-violet-500" />
+          </div>
+          <span className="text-sm font-bold">تغيير كلمة المرور</span>
+        </button>
         <button onClick={handleLogout} className="flex items-center gap-3 px-3 py-2.5 rounded-2xl hover:bg-red-50 transition-all w-full text-red-400 hover:text-red-500">
           <div className="w-8 h-8 rounded-xl bg-red-50 flex items-center justify-center">
             <LogOut size={14} className="text-red-400" />
@@ -85,6 +93,7 @@ export default function ManagerSidebar({ active, onNavigate }) {
           <span className="text-sm font-bold">تسجيل الخروج</span>
         </button>
       </div>
+      {showChangePw && <ChangePasswordModal onClose={() => setShowChangePw(false)} />}
     </aside>
   );
 }

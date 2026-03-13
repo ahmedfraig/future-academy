@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Pencil, Trash2, Phone, Mail, KeyRound, Copy, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, Phone, KeyRound, Copy, X } from 'lucide-react';
 import api from '../../services/api';
 import { ConfirmDialog, FormModal, Field, inputCls, selectCls } from './shared/SharedComponents';
 
-const emptyForm = { name: '', phone: '', email: '', specialization: 'رياض أطفال', assignedClasses: [], active: true };
+const emptyForm = { name: '', phone: '', specialization: 'رياض أطفال', assignedClasses: [], active: true };
 const specOptions = ['رياض أطفال', 'تربية خاصة', 'فنون وحرف', 'موسيقى', 'تربية بدنية', 'لغات'];
 
 export default function TeachersManager() {
@@ -69,7 +69,7 @@ export default function TeachersManager() {
   const openAdd  = () => { setForm(emptyForm); setModal('add'); };
   const openEdit = (t) => {
     setForm({
-      name: t.name, phone: t.phone || '', email: t.email || '',
+      name: t.name, phone: t.phone || '',
       specialization: t.specialization, active: t.active,
       assignedClasses: t.assigned_classes || [],
     });
@@ -83,14 +83,14 @@ export default function TeachersManager() {
     try {
       if (modal === 'add') {
         const { data } = await api.post('/manager/teachers', {
-          name: form.name, phone: form.phone, email: form.email,
+          name: form.name, phone: form.phone,
           specialization: form.specialization, assignedClasses: form.assignedClasses,
         });
         setTeachers((prev) => [...prev, data]);
         showToast(`✅ تم إضافة المعلمة: ${form.name}`);
       } else {
         const { data } = await api.put(`/manager/teachers/${editId}`, {
-          name: form.name, phone: form.phone, email: form.email,
+          name: form.name, phone: form.phone,
           specialization: form.specialization, active: form.active,
         });
         setTeachers((prev) => prev.map((t) => t.id === editId ? data : t));
@@ -156,7 +156,6 @@ export default function TeachersManager() {
                 <p className="text-xs text-pink-500 font-medium mt-0.5">{t.specialization}</p>
                 <div className="flex items-center gap-3 mt-1.5 flex-wrap">
                   <span className="flex items-center gap-1 text-xs text-gray-400"><Phone size={10} /> <span dir="ltr">{t.phone}</span></span>
-                  <span className="flex items-center gap-1 text-xs text-gray-400"><Mail size={10} /> {t.email}</span>
                 </div>
               </div>
             </div>
@@ -216,9 +215,7 @@ export default function TeachersManager() {
               <p className="text-xs text-amber-600 mt-1">يجب أن يكون 10 أرقام ويبدأ بـ 0</p>
             )}
           </Field>
-          <Field label="البريد الإلكتروني">
-            <input name="email" value={form.email} onChange={handleChange} placeholder="name@rawdah.sa" className={inputCls} dir="ltr" />
-          </Field>
+
         </div>
         <Field label="الفصول المعينة (يمكن تعديلها من صفحة التعيينات)">
           <div className="flex flex-wrap gap-2 bg-gray-50 rounded-xl p-3 border border-gray-200">

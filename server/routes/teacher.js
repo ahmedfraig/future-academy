@@ -44,11 +44,32 @@ router.get('/my-class', ...guard, async (req, res) => {
 });
 
 // ── GET /api/teacher/classes ───────────────────────────────────
+// Returns only the classes assigned to the logged-in teacher
 router.get('/classes', ...guard, async (req, res) => {
   try {
-    const { rows } = await db.query('SELECT * FROM classes ORDER BY id');
+    const { teacherId } = req.user;
+    if (!teacherId) {
+      // Fallback: return all classes if no teacher record linked
+      const { rows } = await db.query('SELECT * FROM classes ORDER BY id');
+      return res.json(rows);
+    }
+    // Get teacher's assigned_classes array
+    const { rows: teacherRows } = await db.query(
+      'SELECT assigned_classes FROM teachers WHERE id = $1', [teacherId]
+    );
+    const assignedClasses = teacherRows[0]?.assigned_classes || [];
+    if (assignedClasses.length === 0) {
+      return res.json([]);
+    }
+    const { rows } = await db.query(
+      'SELECT * FROM classes WHERE id = ANY($1) ORDER BY id',
+      [assignedClasses]
+    );
     res.json(rows);
-  } catch (err) { res.status(500).json({ error: 'خطأ في جلب الفصول' }); }
+  } catch (err) {
+    console.error('teacher/classes error:', err);
+    res.status(500).json({ error: 'خطأ في جلب الفصول' });
+  }
 });
 
 // ── GET /api/teacher/students ──────────────────────────────────

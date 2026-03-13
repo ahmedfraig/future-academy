@@ -228,4 +228,103 @@ router.get('/me', verifyToken, async (req, res) => {
   }
 });
 
+// ── POST /api/auth/forgot-password ───────────────────────────
+// Generates a 6-digit OTP, hashes and stores it (1-hour expiry)
+// Returns the plain OTP in the response (no email service configured)
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'البريد الإلكتروني مطلوب' });
+
+    const { rows } = await db.query(
+      'SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [email]
+    );
+    // Always respond success to avoid email enumeration
+    if (!rows[0]) {
+      return res.json({ success: true, message: 'إذا كان البريد مسجلاً، ستصلك رسالة' });
+    }
+
+    // Generate 6-digit OTP
+    const otp = String(Math.floor(100000 + Math.random() * 900000));
+    const hashed = bcrypt.hashSync(otp, 10);
+    const expiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
+
+    await db.query(
+      'UPDATE users SET reset_token = $1, reset_token_expiry = $2 WHERE id = $3',
+      [hashed, expiry.toISOString(), rows[0].id]
+    );
+
+    // Return OTP directly (no email service — show it to user on screen)
+    res.json({ success: true, otp, message: 'تم توليد رمز إعادة التعيين' });
+  } catch (err) {
+    console.error('forgot-password error:', err);
+    res.status(500).json({ error: 'خطأ في إرسال رمز إعادة التعيين' });
+  }
+});
+
+// ── POST /api/auth/reset-password ─────────────────────────────
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+    if (!email || !otp || !newPassword)
+      return res.status(400).json({ error: 'جميع الحقول مطلوبة' });
+    if (newPassword.length < 6)
+      return res.status(400).json({ error: 'كلمة المرور يجب أن تكون 6 أحرف على الأقل' });
+
+    const { rows } = await db.query(
+      'SELECT id, reset_token, reset_token_expiry FROM users WHERE LOWER(email) = LOWER($1)',
+      [email]
+    );
+    const user = rows[0];
+    if (!user || !user.reset_token)
+      return res.status(400).json({ error: 'الرمز غير صحيح أو منتهي الصلاحية' });
+
+    // Check expiry
+    if (new Date(user.reset_token_expiry) < new Date())
+      return res.status(400).json({ error: 'انتهت صلاحية الرمز — يرجى طلب رمز جديد' });
+
+    // Verify OTP
+    const valid = bcrypt.compareSync(otp.trim(), user.reset_token);
+    if (!valid)
+      return res.status(400).json({ error: 'الرمز غير صحيح' });
+
+    const hashed = bcrypt.hashSync(newPassword, 10);
+    await db.query(
+      'UPDATE users SET password = $1, reset_token = NULL, reset_token_expiry = NULL WHERE id = $2',
+      [hashed, user.id]
+    );
+    res.json({ success: true, message: 'تم تغيير كلمة المرور بنجاح' });
+  } catch (err) {
+    console.error('reset-password error:', err);
+    res.status(500).json({ error: 'خطأ في إعادة تعيين كلمة المرور' });
+  }
+});
+
+// ── POST /api/auth/change-password ────────────────────────────
+// Authenticated: user must know their current password
+router.post('/change-password', verifyToken, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword)
+      return res.status(400).json({ error: 'جميع الحقول مطلوبة' });
+    if (newPassword.length < 6)
+      return res.status(400).json({ error: 'كلمة المرور الجديدة يجب أن تكون 6 أحرف على الأقل' });
+
+    const { rows } = await db.query('SELECT password FROM users WHERE id = $1', [req.user.id]);
+    if (!rows[0]) return res.status(404).json({ error: 'المستخدم غير موجود' });
+
+    const valid = bcrypt.compareSync(currentPassword, rows[0].password);
+    if (!valid)
+      return res.status(401).json({ error: 'كلمة المرور الحالية غير صحيحة' });
+
+    const hashed = bcrypt.hashSync(newPassword, 10);
+    await db.query('UPDATE users SET password = $1 WHERE id = $2', [hashed, req.user.id]);
+    res.json({ success: true, message: 'تم تغيير كلمة المرور بنجاح' });
+  } catch (err) {
+    console.error('change-password error:', err);
+    res.status(500).json({ error: 'خطأ في تغيير كلمة المرور' });
+  }
+});
+
 module.exports = router;
+

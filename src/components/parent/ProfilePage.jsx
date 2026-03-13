@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { User, Phone, Shield, Bell, ChevronLeft, Star, LogOut, Check, X } from 'lucide-react';
+import { User, Phone, Shield, Bell, ChevronLeft, Star, LogOut, Check, X, KeyRound } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
+import { ChangePasswordModal } from '../../pages/LoginPage';
 
 // ── NOTIFICATION SETTINGS MODAL ──────────────
 function NotifSettingsModal({ onClose }) {
@@ -106,11 +107,12 @@ export default function ProfilePage() {
   const cls   = childData?.class;
 
   const menuItems = [
-    { icon: Bell,   label: 'إعدادات الإشعارات', color: 'text-blue-500 bg-blue-50',     action: () => setModal('notif') },
-    { icon: Shield, label: 'الأمان والخصوصية',  color: 'text-green-500 bg-green-50',   action: () => setModal('privacy') },
-    { icon: Phone,  label: 'تواصل مع الحضانة',  color: 'text-purple-500 bg-purple-50', action: () => setModal('contact') },
-    { icon: Star,   label: 'قيّم التطبيق',       color: 'text-amber-500 bg-amber-50',   action: () => setModal('rate') },
-    { icon: LogOut, label: 'تسجيل الخروج',       color: 'text-red-500 bg-red-50',       action: handleLogout },
+    { icon: Bell,    label: 'إعدادات الإشعارات', color: 'text-blue-500 bg-blue-50',     action: () => setModal('notif') },
+    { icon: KeyRound,label: 'تغيير كلمة المرور',  color: 'text-violet-500 bg-violet-50', action: () => setModal('changePw') },
+    { icon: Shield,  label: 'الأمان والخصوصية',  color: 'text-green-500 bg-green-50',   action: () => setModal('privacy') },
+    { icon: Phone,   label: 'تواصل مع الحضانة',  color: 'text-purple-500 bg-purple-50', action: () => setModal('contact') },
+    { icon: Star,    label: 'قيّم التطبيق',       color: 'text-amber-500 bg-amber-50',   action: () => setModal('rate') },
+    { icon: LogOut,  label: 'تسجيل الخروج',       color: 'text-red-500 bg-red-50',       action: handleLogout },
   ];
 
   return (
@@ -179,8 +181,9 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {modal === 'notif'   && <NotifSettingsModal onClose={() => setModal(null)} />}
-      {modal === 'contact' && <ContactModal onClose={() => setModal(null)} />}
+      {modal === 'notif'    && <NotifSettingsModal onClose={() => setModal(null)} />}
+      {modal === 'contact'  && <ContactModal onClose={() => setModal(null)} />}
+      {modal === 'changePw' && <ChangePasswordModal onClose={() => setModal(null)} />}
       {modal === 'privacy' && (
         <div className="fixed inset-0 z-[200] flex items-end justify-center" style={{ fontFamily: 'Cairo, sans-serif' }}>
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setModal(null)} />
