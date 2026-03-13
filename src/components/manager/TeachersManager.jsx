@@ -52,7 +52,9 @@ export default function TeachersManager() {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setForm((f) => ({ ...f, [name]: type === 'checkbox' ? checked : value }));
+    // Strip non-digits for phone field
+    const val = name === 'phone' ? value.replace(/\D/g, '') : value;
+    setForm((f) => ({ ...f, [name]: type === 'checkbox' ? checked : val }));
   };
 
   const toggleClass = (cid) => {
@@ -209,7 +211,10 @@ export default function TeachersManager() {
             </select>
           </Field>
           <Field label="رقم الجوال">
-            <input name="phone" value={form.phone} onChange={handleChange} placeholder="05XXXXXXXX" className={inputCls} dir="ltr" />
+            <input name="phone" value={form.phone} onChange={handleChange} placeholder="05XXXXXXXX" className={inputCls} dir="ltr" maxLength={10} inputMode="numeric" />
+            {form.phone.length > 0 && !/^0\d{9}$/.test(form.phone) && (
+              <p className="text-xs text-amber-600 mt-1">يجب أن يكون 10 أرقام ويبدأ بـ 0</p>
+            )}
           </Field>
           <Field label="البريد الإلكتروني">
             <input name="email" value={form.email} onChange={handleChange} placeholder="name@rawdah.sa" className={inputCls} dir="ltr" />

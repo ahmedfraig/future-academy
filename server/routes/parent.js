@@ -132,6 +132,64 @@ router.post('/notes', ...guard, async (req, res) => {
   } catch (err) { res.status(500).json({ error: 'خطأ في إرسال الملاحظة' }); }
 });
 
+// ── GET /api/parent/notifications ────────────────────────────
+// Unified notification feed: announcements + teacher notes (newest first)
+router.get('/notifications', ...guard, async (req, res) => {
+  try {
+    const { childId } = req.user;
+    if (!childId) return res.status(404).json({ error: 'لم يتم ربط طفل بهذا الحساب' });
+
+    // Get child's class for filtering class-specific announcements
+    const childRes = await db.query('SELECT class_id FROM students WHERE id = $1', [childId]);
+    const classId  = childRes.rows[0]?.class_id;
+
+    // Fetch announcements
+    const { rows: annRows } = await db.query(
+      `SELECT id, title AS title, body AS body, color, created_at
+       FROM announcements
+       WHERE target = 'all' OR target = $1
+       ORDER BY created_at DESC
+       LIMIT 20`,
+      [classId || '']
+    );
+
+    // Fetch teacher notes for this child
+    const { rows: noteRows } = await db.query(
+      `SELECT id, text, from_name, created_at
+       FROM notes
+       WHERE student_id = $1 AND from_role = 'teacher'
+       ORDER BY created_at DESC
+       LIMIT 20`,
+      [childId]
+    );
+
+    // Merge and sort
+    const notifications = [
+      ...annRows.map((a) => ({
+        id:         `ann-${a.id}`,
+        type:       'announcement',
+        icon:       '📢',
+        title:      a.title,
+        body:       a.body,
+        created_at: a.created_at,
+      })),
+      ...noteRows.map((n) => ({
+        id:         `note-${n.id}`,
+        type:       'note',
+        icon:       '📝',
+        title:      `ملاحظة من ${n.from_name || 'المعلمة'}`,
+        body:       n.text,
+        created_at: n.created_at,
+      })),
+    ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+    res.json(notifications);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'خطأ في جلب الإشعارات' });
+  }
+});
+
 // ── GET /api/parent/daily-subjects ───────────────────────────
 // Returns the subject log for the child's class on a given date.
 // Accepts optional ?date=YYYY-MM-DD param; defaults to today.

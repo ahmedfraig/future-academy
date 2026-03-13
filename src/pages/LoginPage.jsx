@@ -4,9 +4,9 @@ import { Eye, EyeOff, LogIn, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const roles = [
-  { id: 'parent',  label: 'ولي الأمر',  emoji: '👨‍👦', color: 'bg-blue-500',   light: 'bg-blue-50 border-blue-200 text-blue-700',    demo: { email: 'parent1@rawdah.sa',  pass: 'parent123'  } },
-  { id: 'teacher', label: 'المعلمة',    emoji: '👩‍🏫', color: 'bg-violet-500', light: 'bg-violet-50 border-violet-200 text-violet-700', demo: { email: 'teacher1@rawdah.sa', pass: 'teacher123' } },
-  { id: 'manager', label: 'المدير',     emoji: '👨‍💼', color: 'bg-rose-500',   light: 'bg-rose-50 border-rose-200 text-rose-700',       demo: { email: 'manager@rawdah.sa',  pass: 'manager123'  } },
+  { id: 'parent',  label: 'ولي الأمر', emoji: '👨‍👦', color: 'bg-blue-500'   },
+  { id: 'teacher', label: 'المعلمة',   emoji: '👩‍🏫', color: 'bg-violet-500' },
+  { id: 'manager', label: 'المدير',    emoji: '👨‍💼', color: 'bg-rose-500'   },
 ];
 
 const dashMap = { manager: '/dashboard/manager', teacher: '/dashboard/teacher', parent: '/dashboard/parent' };
@@ -22,12 +22,6 @@ export default function LoginPage() {
   const [error, setError]       = useState('');
 
   const activeRole = roles.find((r) => r.id === selectedRole);
-
-  const fillDemo = () => {
-    setEmail(activeRole.demo.email);
-    setPassword(activeRole.demo.pass);
-    setError('');
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -154,14 +148,7 @@ export default function LoginPage() {
                 </div>
               )}
 
-              {/* Demo credentials hint */}
-              <button
-                type="button"
-                onClick={fillDemo}
-                className={`text-xs font-bold border rounded-xl px-4 py-2.5 transition-all ${activeRole.light}`}
-              >
-                {activeRole.emoji} استخدام بيانات تجريبية: {activeRole.demo.email}
-              </button>
+
 
               {/* Submit */}
               <button

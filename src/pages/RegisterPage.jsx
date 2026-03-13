@@ -16,6 +16,10 @@ const ROLES = [
   { id: 'manager', label: 'مدير',      emoji: '👨‍💼', color: 'bg-rose-500'   },
 ];
 
+// ── Phone-only filter ─────────────────────────────────────────
+const toDigits = (v) => v.replace(/\D/g, '');
+const phoneValid = (v) => /^0\d{9}$/.test(v);
+
 export default function RegisterPage() {
   const { register } = useAuth();
   const navigate = useNavigate();
@@ -38,10 +42,17 @@ export default function RegisterPage() {
 
   const isManager = role === 'manager';
   const isParent  = role === 'parent';
+  const isTeacher = role === 'teacher';
   const activeRole = ROLES.find((r) => r.id === role);
 
   // Reset code state when role or code changes
   useEffect(() => { setCodeResult(null); setCodeError(''); }, [role, inviteCode]);
+
+  // Reset fields when role changes
+  const handleRoleChange = (newRole) => {
+    setRole(newRole); setError(''); setInviteCode('');
+    setCodeResult(null); setPhone(''); setName('');
+  };
 
   const verifyCode = async () => {
     if (!inviteCode.trim()) return;
@@ -62,15 +73,18 @@ export default function RegisterPage() {
     e.preventDefault();
     if (!email || !password || !inviteCode) { setError('يرجى تعبئة جميع الحقول الإلزامية'); return; }
     if (isManager && !name) { setError('اسم المدير مطلوب'); return; }
+    if (isParent && !name)  { setError('اسم ولي الأمر مطلوب'); return; }
     if (password !== confirmPw) { setError('كلمة المرور غير متطابقة'); return; }
     if (password.length < 6) { setError('كلمة المرور يجب أن تكون 6 أحرف على الأقل'); return; }
     if (isParent && !phone) { setError('رقم جوال ولي الأمر مطلوب'); return; }
+    if (isParent && !phoneValid(phone)) { setError('رقم الجوال يجب أن يكون 10 أرقام ويبدأ بـ 0'); return; }
+    if (isTeacher && phone && !phoneValid(phone)) { setError('رقم الجوال يجب أن يكون 10 أرقام ويبدأ بـ 0'); return; }
     if (!isManager && !codeResult?.valid) { setError('يرجى التحقق من رمز الدعوة أولاً'); return; }
 
     setLoading(true); setError('');
     try {
       const user = await register({
-        email, password, phone, role,
+        email, password, phone: phone || undefined, role,
         name: name || undefined,
         inviteCode: inviteCode.trim().toUpperCase(),
       });
@@ -98,7 +112,7 @@ export default function RegisterPage() {
           <div className="flex gap-2 mb-6 p-1 bg-gray-100 rounded-2xl">
             {ROLES.map((r) => (
               <button key={r.id} type="button"
-                onClick={() => { setRole(r.id); setError(''); setInviteCode(''); setCodeResult(null); }}
+                onClick={() => handleRoleChange(r.id)}
                 className={`flex-1 flex flex-col items-center gap-1 py-2.5 px-2 rounded-xl font-bold text-xs transition-all ${
                   role === r.id ? `${r.color} text-white shadow-md` : 'text-gray-500 hover:text-gray-700'
                 }`}>
@@ -161,11 +175,13 @@ export default function RegisterPage() {
               )}
             </div>
 
-            {/* ── Name (manager only) ── */}
-            {isManager && (
+            {/* ── Name (manager + parent) ── */}
+            {(isManager || isParent) && (
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-bold text-gray-500 flex items-center gap-1"><User size={11} /> الاسم الكامل *</label>
-                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="اسم المدير" className={inputCls} style={{ fontFamily: 'Cairo, sans-serif' }} />
+                <input value={name} onChange={(e) => setName(e.target.value)}
+                  placeholder={isManager ? 'اسم المدير' : 'اسم ولي الأمر'}
+                  className={inputCls} style={{ fontFamily: 'Cairo, sans-serif' }} />
               </div>
             )}
 
@@ -175,11 +191,26 @@ export default function RegisterPage() {
               <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@rawdah.sa" className={inputCls} dir="ltr" autoComplete="email" />
             </div>
 
-            {/* ── Phone (parent only) ── */}
-            {isParent && (
+            {/* ── Phone (parent required / teacher optional) ── */}
+            {(isParent || isTeacher) && (
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-gray-500 flex items-center gap-1"><Phone size={11} /> رقم جوال ولي الأمر *</label>
-                <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="05XXXXXXXX" className={inputCls} dir="ltr" />
+                <label className="text-xs font-bold text-gray-500 flex items-center gap-1">
+                  <Phone size={11} />
+                  {isParent ? 'رقم جوال ولي الأمر *' : 'رقم الجوال (اختياري)'}
+                </label>
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(toDigits(e.target.value))}
+                  placeholder="05XXXXXXXX"
+                  className={inputCls}
+                  dir="ltr"
+                  maxLength={10}
+                  inputMode="numeric"
+                />
+                {phone.length > 0 && !phoneValid(phone) && (
+                  <p className="text-xs text-amber-600 font-medium">يجب أن يكون 10 أرقام ويبدأ بـ 0</p>
+                )}
               </div>
             )}
 

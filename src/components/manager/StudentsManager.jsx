@@ -73,7 +73,9 @@ export default function StudentsManager() {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setForm((f) => ({ ...f, [name]: type === 'checkbox' ? checked : value }));
+    // Strip non-digits for phone field
+    const val = name === 'phone' ? value.replace(/\D/g, '') : value;
+    setForm((f) => ({ ...f, [name]: type === 'checkbox' ? checked : val }));
     if (name === 'gender') setForm((f) => ({ ...f, gender: value, avatar: value === 'ذكر' ? '👦' : '👧' }));
   };
 
@@ -308,7 +310,10 @@ export default function StudentsManager() {
             <input name="parentName" value={form.parentName} onChange={handleChange} placeholder="الاسم الكامل" className={inputCls} style={{ fontFamily: 'Cairo, sans-serif' }} />
           </Field>
           <Field label="رقم الجوال">
-            <input name="phone" value={form.phone} onChange={handleChange} placeholder="05XXXXXXXX" className={inputCls} dir="ltr" />
+            <input name="phone" value={form.phone} onChange={handleChange} placeholder="05XXXXXXXX" className={inputCls} dir="ltr" maxLength={10} inputMode="numeric" />
+            {form.phone.length > 0 && !/^0\d{9}$/.test(form.phone) && (
+              <p className="text-xs text-amber-600 mt-1">يجب أن يكون 10 أرقام ويبدأ بـ 0</p>
+            )}
           </Field>
         </div>
         <Field label="">
