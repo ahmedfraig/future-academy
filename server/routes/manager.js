@@ -391,4 +391,56 @@ router.get('/students/:id/notes', ...guard, async (req, res) => {
   } catch (err) { res.status(500).json({ error: 'خطأ في جلب الملاحظات' }); }
 });
 
+// ── RESET KEY GENERATION (Password Reset by Manager) ─────────
+// POST /api/manager/teachers/:id/generate-reset-key
+// Generates a one-time 6-digit reset key for the teacher's user account
+router.post('/teachers/:id/generate-reset-key', ...guard, async (req, res) => {
+  try {
+    const { rows: userRows } = await db.query(
+      'SELECT id, name FROM users WHERE teacher_id = $1', [req.params.id]
+    );
+    if (!userRows[0]) return res.status(404).json({ error: 'لا يوجد حساب مرتبط بهذه المعلمة' });
+
+    const otp    = String(Math.floor(100000 + Math.random() * 900000));
+    const hashed = bcrypt.hashSync(otp, 10);
+    const expiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    await db.query(
+      'UPDATE users SET reset_token = $1, reset_token_expiry = $2 WHERE id = $3',
+      [hashed, expiry.toISOString(), userRows[0].id]
+    );
+
+    res.json({ resetKey: otp, userName: userRows[0].name });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'خطأ في توليد رمز إعادة التعيين' });
+  }
+});
+
+// POST /api/manager/students/:id/generate-reset-key
+// Generates a one-time 6-digit reset key for the parent account linked to this student
+router.post('/students/:id/generate-reset-key', ...guard, async (req, res) => {
+  try {
+    const { rows: userRows } = await db.query(
+      'SELECT id, name FROM users WHERE child_id = $1', [req.params.id]
+    );
+    if (!userRows[0]) return res.status(404).json({ error: 'لا يوجد حساب ولي أمر مرتبط بهذا الطالب' });
+
+    const otp    = String(Math.floor(100000 + Math.random() * 900000));
+    const hashed = bcrypt.hashSync(otp, 10);
+    const expiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    await db.query(
+      'UPDATE users SET reset_token = $1, reset_token_expiry = $2 WHERE id = $3',
+      [hashed, expiry.toISOString(), userRows[0].id]
+    );
+
+    res.json({ resetKey: otp, userName: userRows[0].name });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'خطأ في توليد رمز إعادة التعيين' });
+  }
+});
+
 module.exports = router;
+

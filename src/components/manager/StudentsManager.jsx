@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Pencil, Trash2, CheckCircle, XCircle, KeyRound, Copy, X, MessageSquare } from 'lucide-react';
+import { Search, Plus, Pencil, Trash2, CheckCircle, XCircle, KeyRound, Copy, X, MessageSquare, ShieldAlert } from 'lucide-react';
 import api from '../../services/api';
 import { ConfirmDialog, FormModal, Field, inputCls, selectCls } from './shared/SharedComponents';
 
@@ -18,9 +18,11 @@ export default function StudentsManager() {
   const [confirmId, setConfirmId] = useState(null);
   const [toast, setToast]       = useState('');
   const [saving, setSaving]     = useState(false);
-  const [inviteModal, setInviteModal] = useState(null);
-  const [generatingId, setGeneratingId] = useState(null);
-  const [notesPanel, setNotesPanel] = useState(null); // { studentName, notes, loading }
+  const [inviteModal, setInviteModal]     = useState(null);
+  const [generatingId, setGeneratingId]   = useState(null);
+  const [notesPanel, setNotesPanel]       = useState(null);
+  const [resetKeyModal, setResetKeyModal] = useState(null); // { name, key }
+  const [generatingResetId, setGeneratingResetId] = useState(null);
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 2500); };
 
@@ -33,6 +35,18 @@ export default function StudentsManager() {
       showToast('❌ فشل توليد رمز الدعوة');
     } finally {
       setGeneratingId(null);
+    }
+  };
+
+  const generateResetKey = async (student) => {
+    setGeneratingResetId(student.id);
+    try {
+      const { data } = await api.post(`/manager/students/${student.id}/generate-reset-key`);
+      setResetKeyModal({ name: data.userName, key: data.resetKey });
+    } catch (err) {
+      showToast(err.response?.data?.error || '❌ فشل توليد رمز إعادة التعيين');
+    } finally {
+      setGeneratingResetId(null);
     }
   };
 
@@ -258,6 +272,12 @@ export default function StudentsManager() {
                           ? <span className="animate-spin text-xs">⟳</span>
                           : <KeyRound size={13} className="text-amber-600" />}
                       </button>
+                      <button onClick={() => generateResetKey(s)} disabled={generatingResetId === s.id}
+                        className="w-8 h-8 bg-red-50 hover:bg-red-100 rounded-xl flex items-center justify-center transition-colors disabled:opacity-40" title="رمز إعادة كلمة مرور ولي الأمر">
+                        {generatingResetId === s.id
+                          ? <span className="animate-spin text-xs">⟳</span>
+                          : <ShieldAlert size={13} className="text-red-500" />}
+                      </button>
                       <button onClick={() => openEdit(s)} className="w-8 h-8 bg-blue-50 hover:bg-blue-100 rounded-xl flex items-center justify-center transition-colors" title="تعديل">
                         <Pencil size={13} className="text-blue-600" />
                       </button>
@@ -396,6 +416,39 @@ export default function StudentsManager() {
             <button
               onClick={() => { navigator.clipboard.writeText(inviteModal.code); showToast('✅ تم نسخ الرمز'); }}
               className="flex items-center justify-center gap-2 w-full py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl font-bold text-sm transition-all"
+            >
+              <Copy size={15} /> نسخ الرمز
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Reset Key Modal */}
+      {resetKeyModal && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" dir="rtl">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 flex flex-col gap-4" style={{ fontFamily: 'Cairo, sans-serif' }}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 bg-red-100 rounded-xl flex items-center justify-center">
+                  <ShieldAlert size={18} className="text-red-500" />
+                </div>
+                <h3 className="font-black text-gray-800">رمز إعادة تعيين كلمة المرور</h3>
+              </div>
+              <button onClick={() => setResetKeyModal(null)} className="w-8 h-8 bg-gray-100 rounded-xl flex items-center justify-center hover:bg-gray-200">
+                <X size={14} className="text-gray-500" />
+              </button>
+            </div>
+            <p className="text-sm text-gray-500">رمز إعادة التعيين لـ <span className="font-bold text-gray-800">{resetKeyModal.name}</span></p>
+            <div className="bg-red-50 border-2 border-red-300 rounded-2xl p-4 text-center">
+              <p className="text-xs font-bold text-red-500 mb-2">🔑 الرمز (صالح ساعة واحدة)</p>
+              <p className="font-black text-3xl tracking-[0.3em] text-red-800 select-all" dir="ltr">{resetKeyModal.key}</p>
+            </div>
+            <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
+              <p className="text-xs font-bold text-amber-700">⚠️ يُعرض هذا الرمز مرة واحدة فقط — أرسله لولي الأمر الآن</p>
+            </div>
+            <button
+              onClick={() => { navigator.clipboard.writeText(resetKeyModal.key); showToast('✅ تم نسخ الرمز'); }}
+              className="flex items-center justify-center gap-2 w-full py-3 bg-red-500 hover:bg-red-600 text-white rounded-2xl font-bold text-sm transition-all"
             >
               <Copy size={15} /> نسخ الرمز
             </button>

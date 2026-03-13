@@ -126,34 +126,15 @@ export function ChangePasswordModal({ onClose }) {
 
 // ── FORGOT PASSWORD FLOW ─────────────────────────────────────
 function ForgotPasswordFlow({ onBack }) {
-  const [step, setStep]       = useState(1); // 1=email, 2=show OTP, 3=reset
-  const [email, setEmail]     = useState('');
-  const [otp, setOtp]         = useState('');
-  const [otpInput, setOtpInput] = useState('');
-  const [newPass, setNewPass] = useState('');
+  const [step, setStep]               = useState(1); // 1=email+instruction, 2=enter key+new password
+  const [email, setEmail]             = useState('');
+  const [resetKey, setResetKey]       = useState('');
+  const [newPass, setNewPass]         = useState('');
   const [confirmPass, setConfirmPass] = useState('');
   const [showPass, setShowPass]       = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState('');
-  const [success, setSuccess] = useState(false);
-
-  const handleRequestOtp = async (e) => {
-    e.preventDefault();
-    setError('');
-    if (!email) { setError('يرجى إدخال البريد الإلكتروني'); return; }
-    setLoading(true);
-    try {
-      const { data } = await api.post('/auth/forgot-password', { email });
-      if (data.otp) {
-        setOtp(data.otp);
-        setStep(2);
-      } else {
-        setError('لم يتم العثور على حساب بهذا البريد الإلكتروني');
-      }
-    } catch (err) {
-      setError(err.response?.data?.error || 'حدث خطأ. حاول مرة أخرى');
-    } finally { setLoading(false); }
-  };
+  const [loading, setLoading]         = useState(false);
+  const [error, setError]             = useState('');
+  const [success, setSuccess]         = useState(false);
 
   const handleReset = async (e) => {
     e.preventDefault();
@@ -162,10 +143,10 @@ function ForgotPasswordFlow({ onBack }) {
     if (newPass.length < 6) { setError('كلمة المرور يجب أن تكون 6 أحرف على الأقل'); return; }
     setLoading(true);
     try {
-      await api.post('/auth/reset-password', { email, otp: otpInput, newPassword: newPass });
+      await api.post('/auth/reset-password', { email, otp: resetKey.trim(), newPassword: newPass });
       setSuccess(true);
     } catch (err) {
-      setError(err.response?.data?.error || 'الرمز غير صحيح أو منتهي الصلاحية');
+      setError(err.response?.data?.error || 'الرمز غير صحيح أو انتهت صلاحيته');
     } finally { setLoading(false); }
   };
 
@@ -193,15 +174,14 @@ function ForgotPasswordFlow({ onBack }) {
         </button>
         <h3 className="text-xl font-black text-gray-800">نسيت كلمة المرور؟ 🔑</h3>
         <p className="text-sm text-gray-400 mt-1">
-          {step === 1 && 'أدخل بريدك الإلكتروني لاسترداد رمز إعادة التعيين'}
-          {step === 2 && 'احتفظ بهذا الرمز، ستحتاجه في الخطوة التالية'}
-          {step === 3 && 'أدخل رمز التحقق وكلمة المرور الجديدة'}
+          {step === 1 && 'أدخل بريدك الإلكتروني واتصل بالمدير للحصول على رمز إعادة التعيين'}
+          {step === 2 && 'أدخل الرمز الذي أرسله لك المدير وكلمة المرور الجديدة'}
         </p>
       </div>
 
-      {/* Step 1: Email */}
+      {/* Step 1: Email + manager instruction */}
       {step === 1 && (
-        <form onSubmit={handleRequestOtp} className="flex flex-col gap-3">
+        <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-bold text-gray-500">البريد الإلكتروني</label>
             <input
@@ -211,46 +191,40 @@ function ForgotPasswordFlow({ onBack }) {
               dir="ltr" autoComplete="email"
             />
           </div>
+
+          {/* Manager instruction card */}
+          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex flex-col gap-2">
+            <p className="text-xs font-black text-blue-700">📞 كيف تحصل على رمز إعادة التعيين؟</p>
+            <p className="text-xs text-blue-600 leading-relaxed">
+              تواصل مع مدير الحضانة وأعطه بريدك الإلكتروني، وسيولّد لك رمزاً مكوناً من 6 أرقام. بعد استلامه اضغط الزر أدناه.
+            </p>
+          </div>
+
+          <button
+            onClick={() => { if (email) setStep(2); else setError('يرجى إدخال البريد الإلكتروني أولاً'); }}
+            disabled={!email}
+            className="w-full py-3.5 rounded-2xl font-black text-white bg-violet-600 hover:bg-violet-700 disabled:bg-gray-200 disabled:text-gray-400 transition-all"
+          >
+            لديّ الرمز — التالي
+          </button>
           {error && (
             <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 rounded-xl px-4 py-3 text-sm">
               <AlertCircle size={15} />{error}
             </div>
           )}
-          <button type="submit" disabled={loading || !email}
-            className="w-full py-3.5 rounded-2xl font-black text-white bg-violet-600 hover:bg-violet-700 disabled:bg-gray-200 disabled:text-gray-400 transition-all">
-            {loading ? '⟳ جاري الإرسال...' : 'إرسال رمز التحقق'}
-          </button>
-        </form>
-      )}
-
-      {/* Step 2: Show OTP */}
-      {step === 2 && (
-        <div className="flex flex-col gap-4">
-          <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-5 text-center">
-            <p className="text-xs font-bold text-amber-600 mb-2">🔑 رمز التحقق الخاص بك</p>
-            <p className="font-black text-3xl tracking-[0.3em] text-amber-800 select-all" dir="ltr">{otp}</p>
-            <p className="text-xs text-amber-500 mt-2">صالح لمدة ساعة واحدة</p>
-          </div>
-          <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3">
-            <p className="text-xs text-blue-700 font-bold">⚠️ احفظ هذا الرمز الآن قبل الانتقال للخطوة التالية</p>
-          </div>
-          <button onClick={() => setStep(3)}
-            className="w-full py-3.5 rounded-2xl font-black text-white bg-violet-600 hover:bg-violet-700 transition-all">
-            التالي — إدخال كلمة المرور الجديدة
-          </button>
         </div>
       )}
 
-      {/* Step 3: Enter OTP + new password */}
-      {step === 3 && (
+      {/* Step 2: Enter reset key + new password */}
+      {step === 2 && (
         <form onSubmit={handleReset} className="flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-gray-500">رمز التحقق</label>
+            <label className="text-xs font-bold text-gray-500">رمز إعادة التعيين (6 أرقام)</label>
             <input
-              type="text" value={otpInput} onChange={(e) => setOtpInput(e.target.value)}
-              placeholder="XXXXXX"
+              type="text" value={resetKey} onChange={(e) => setResetKey(e.target.value)}
+              placeholder="123456"
               className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-violet-400 text-center font-black tracking-widest"
-              dir="ltr" maxLength={6}
+              dir="ltr" maxLength={6} inputMode="numeric"
             />
           </div>
           <div className="flex flex-col gap-1.5">
@@ -284,7 +258,7 @@ function ForgotPasswordFlow({ onBack }) {
               <AlertCircle size={15} />{error}
             </div>
           )}
-          <button type="submit" disabled={loading || !otpInput || !newPass || !confirmPass}
+          <button type="submit" disabled={loading || !resetKey || !newPass || !confirmPass}
             className="w-full py-3.5 rounded-2xl font-black text-white bg-violet-600 hover:bg-violet-700 disabled:bg-gray-200 disabled:text-gray-400 transition-all">
             {loading ? '⟳ جاري التغيير...' : '🔒 تغيير كلمة المرور'}
           </button>
@@ -293,6 +267,7 @@ function ForgotPasswordFlow({ onBack }) {
     </div>
   );
 }
+
 
 // ── MAIN LOGIN PAGE ──────────────────────────────────────────
 export default function LoginPage() {
