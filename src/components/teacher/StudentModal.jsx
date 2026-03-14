@@ -181,7 +181,7 @@ function ParentNotesModal({ studentId, studentName, onClose }) {
 }
 
 // ── MAIN MODAL ────────────────────────────────
-export function StudentModal({ student, onClose, onSave }) {
+export function StudentModal({ student, onClose, onSave, isHoliday }) {
   const parsedBehavior = (() => {
     const b = student?.behavior;
     const KNOWN = ['ممتاز 🌟', 'جيد 😊', 'عادي 😐', 'يحتاج دعم 💛', 'صعب 😟'];
@@ -335,6 +335,18 @@ export function StudentModal({ student, onClose, onSave }) {
 
           {/* Scrollable Body */}
           <div className="overflow-y-auto flex-1 px-5 py-4 flex flex-col gap-5">
+            {/* Holiday lock notice */}
+            {isHoliday && (
+              <div className="bg-orange-50 border-2 border-orange-200 rounded-2xl px-4 py-4 flex items-center gap-3">
+                <span className="text-3xl">🏖️</span>
+                <div>
+                  <p className="font-black text-orange-700 text-sm">يوم إجازة</p>
+                  <p className="text-xs text-orange-500 mt-0.5">لا يمكن تسجيل الحضور أو البيانات في أيام الإجازة</p>
+                </div>
+              </div>
+            )}
+
+            <div className={isHoliday ? 'opacity-40 pointer-events-none' : ''}>
 
             {/* 0. مواد اليوم */}
             <div className="bg-indigo-50 rounded-2xl p-4 border border-indigo-100">
@@ -480,7 +492,8 @@ export function StudentModal({ student, onClose, onSave }) {
             </div>
 
             {error && <p className="text-red-500 text-xs font-bold text-center bg-red-50 rounded-xl py-2">{error}</p>}
-          </div>
+            </div>{/* end holiday-lock wrapper */}
+          </div>{/* end scrollable body */}
 
           {/* Fixed Save Button */}
           <div className="px-5 py-4 border-t border-gray-100 flex-shrink-0">

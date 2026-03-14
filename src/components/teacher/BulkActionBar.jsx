@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, Clock, CheckCircle } from 'lucide-react';
 
-export function BulkActionBar({ selectedCount, moodOptions = [], onBulkMeal, onBulkPotty, onBulkMood, onClearSelection }) {
+export function BulkActionBar({ selectedCount, moodOptions = [], onBulkMeal, onBulkPotty, onBulkMood, onClearSelection, isHoliday }) {
   const [activePicker, setActivePicker] = useState(null); // 'meal' | 'mood' | null
   const mealOptions = [
     { id: 'breakfast', label: 'الفطار', emoji: '🥐' },
@@ -9,7 +9,7 @@ export function BulkActionBar({ selectedCount, moodOptions = [], onBulkMeal, onB
     { id: 'snack', label: 'السناك', emoji: '🍎' },
   ];
 
-  if (selectedCount === 0) return null;
+  if (selectedCount === 0 || isHoliday) return null;
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 animate-slide-up" dir="rtl">

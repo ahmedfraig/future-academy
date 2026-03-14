@@ -4,7 +4,7 @@ import { CheckSquare, Square, AlertCircle, Pill } from 'lucide-react';
 // =============================================
 // INDIVIDUAL STUDENT CARD
 // =============================================
-export function StudentCard({ student, selected, onSelect, onOpenModal }) {
+export function StudentCard({ student, selected, onSelect, onOpenModal, isHoliday }) {
   const moodBg = {
     '😄': 'bg-emerald-50 border-emerald-200',
     '😊': 'bg-blue-50 border-blue-200',
@@ -13,18 +13,20 @@ export function StudentCard({ student, selected, onSelect, onOpenModal }) {
     '😴': 'bg-purple-50 border-purple-200',
   };
 
-  const cardBg = !student.present
+  const cardBg = !student.present && !isHoliday
     ? 'bg-gray-50 border-gray-200 opacity-60'
     : selected
     ? 'bg-violet-50 border-violet-400 ring-2 ring-violet-300'
+    : isHoliday
+    ? 'bg-orange-50 border-orange-200'
     : 'bg-white border-gray-100 hover:border-violet-200 hover:shadow-md';
 
   return (
     <div
       className={`relative rounded-2xl border-2 p-4 transition-all duration-200 cursor-pointer ${cardBg}`}
     >
-      {/* Selection Checkbox */}
-      {student.present && (
+      {/* Selection Checkbox — hidden on holidays */}
+      {student.present && !isHoliday && (
         <button
           onClick={(e) => { e.stopPropagation(); onSelect(student.id); }}
           className="absolute top-2.5 left-2.5 z-10"
@@ -37,10 +39,10 @@ export function StudentCard({ student, selected, onSelect, onOpenModal }) {
         </button>
       )}
 
-      {/* Absence Badge */}
+      {/* Absence Badge / Holiday Badge */}
       {!student.present && (
-        <div className="absolute top-2 right-2 bg-red-100 text-red-500 text-xs font-bold px-2 py-0.5 rounded-full">
-          غائب
+        <div className={`absolute top-2 right-2 text-xs font-bold px-2 py-0.5 rounded-full ${isHoliday ? 'bg-orange-100 text-orange-500' : 'bg-red-100 text-red-500'}`}>
+          {isHoliday ? '🏖️' : 'غائب'}
         </div>
       )}
 
@@ -77,7 +79,7 @@ export function StudentCard({ student, selected, onSelect, onOpenModal }) {
 // =============================================
 // STUDENTS GRID
 // =============================================
-export function StudentsGrid({ students, selectedIds, onSelect, onOpenModal }) {
+export function StudentsGrid({ students, selectedIds, onSelect, onOpenModal, isHoliday }) {
   return (
     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-3">
       {students.map((student) => (
@@ -87,6 +89,7 @@ export function StudentsGrid({ students, selectedIds, onSelect, onOpenModal }) {
           selected={selectedIds.includes(student.id)}
           onSelect={onSelect}
           onOpenModal={onOpenModal}
+          isHoliday={isHoliday}
         />
       ))}
     </div>

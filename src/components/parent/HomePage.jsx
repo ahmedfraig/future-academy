@@ -10,16 +10,34 @@ const colorMap = {
   purple: { bg: 'bg-purple-50',  border: 'border-purple-200',  dot: 'bg-purple-400',  title: 'text-purple-700'  },
 };
 
-function AttendanceCard({ child, loading }) {
+function AttendanceCard({ child, loading, holiday }) {
   const moodMap = { '😄': 'سعيد', '😊': 'بخير', '😐': 'عادي', '😢': 'حزين', '😴': 'متعب', '😤': 'متوتر' };
   const mood = child?.mood;
   const today = new Date().toLocaleDateString('ar-SA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
+  const isHoliday = holiday?.isHoliday;
+
+  // Card gradient changes on holiday
+  const gradient = isHoliday
+    ? 'bg-gradient-to-l from-orange-400 to-amber-400'
+    : 'bg-gradient-to-l from-emerald-400 to-teal-500';
+
+  const statusText = loading
+    ? 'جاري التحميل...'
+    : isHoliday
+    ? `إجازة — ${holiday.label || 'يوم إجازة رسمية'}`
+    : child?.present
+    ? `وصل الحضانة ${child.arrival_time ? child.arrival_time : '✅'}`
+    : 'غائب اليوم';
+
+  const statusEmoji = isHoliday ? '🏖️' : (mood || (child?.present ? '😊' : '😶'));
+  const statusLabel = isHoliday ? 'إجازة' : (mood ? (moodMap[mood] || mood) : (child?.present ? 'حاضر' : 'غائب'));
+
   return (
-    <div className="bg-gradient-to-l from-emerald-400 to-teal-500 rounded-3xl p-5 text-white shadow-lg animate-fade-in">
+    <div className={`${gradient} rounded-3xl p-5 text-white shadow-lg animate-fade-in`}>
       <div className="flex items-center justify-between">
         <div className="flex flex-col gap-1">
-          <span className="text-sm font-medium text-emerald-50 opacity-90">حالة الحضور اليوم</span>
+          <span className="text-sm font-medium text-white/90">حالة الحضور اليوم</span>
           {loading ? (
             <div className="flex items-center gap-2 mt-1">
               <span className="text-lg font-bold opacity-70">جاري التحميل...</span>
@@ -27,19 +45,15 @@ function AttendanceCard({ child, loading }) {
           ) : (
             <div className="flex items-center gap-2 mt-1">
               <MapPin size={18} className="text-white" />
-              <span className="text-lg font-bold">
-                {child?.present
-                  ? `وصل الحضانة ${child.arrival_time ? child.arrival_time : '✅'}`
-                  : 'غائب اليوم'}
-              </span>
+              <span className="text-lg font-bold">{statusText}</span>
             </div>
           )}
-          <span className="text-xs text-emerald-100 mt-1">{today}</span>
+          <span className="text-xs text-white/80 mt-1">{today}</span>
         </div>
         <div className="flex flex-col items-center gap-1">
-          <div className="text-5xl animate-bounce-gentle">{mood || (child?.present ? '😊' : '😶')}</div>
+          <div className="text-5xl animate-bounce-gentle">{statusEmoji}</div>
           <span className="text-sm font-semibold text-white bg-white/20 px-3 py-0.5 rounded-full">
-            {mood ? (moodMap[mood] || mood) : (child?.present ? 'حاضر' : 'غائب')}
+            {statusLabel}
           </span>
         </div>
       </div>
@@ -102,15 +116,19 @@ export default function HomePage() {
   const [child, setChild]               = useState(null);
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading]           = useState(true);
+  const [holiday, setHoliday]           = useState(null);
 
   useEffect(() => {
+    const today = new Date().toISOString().slice(0, 10);
     Promise.all([
       api.get('/parent/child'),
       api.get('/parent/announcements'),
+      api.get('/parent/holidays/check', { params: { date: today } }),
     ])
-      .then(([childRes, annRes]) => {
+      .then(([childRes, annRes, holRes]) => {
         setChild(childRes.data.child);
         setAnnouncements(annRes.data);
+        setHoliday(holRes.data);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -118,7 +136,7 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-col gap-4 animate-slide-up">
-      <AttendanceCard child={child} loading={loading} />
+      <AttendanceCard child={child} loading={loading} holiday={holiday} />
       <AnnouncementsCard announcements={announcements} loading={loading} />
     </div>
   );

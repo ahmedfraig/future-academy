@@ -38,7 +38,7 @@ const subjectBg = {
 };
 
 // ── SUBJECTS PANEL ────────────────────────────
-function SubjectsPanel({ showToast, currentClass }) {
+function SubjectsPanel({ showToast, currentClass, isHoliday }) {
   const [subjects, setSubjects]         = useState([]);
   const [loading, setLoading]           = useState(true);
   const [expanded, setExpanded]         = useState(true);
@@ -159,7 +159,12 @@ function SubjectsPanel({ showToast, currentClass }) {
       </button>
 
       {expanded && (
-        <div className="px-5 pb-5">
+        <div className={`px-5 pb-5 ${isHoliday ? 'opacity-40 pointer-events-none' : ''}`}>
+          {isHoliday && (
+            <div className="bg-orange-50 border border-orange-200 rounded-xl px-3 py-2 mb-3 text-center">
+              <p className="text-xs font-bold text-orange-600">🏖️ لا يمكن تسجيل المواد في أيام الإجازة</p>
+            </div>
+          )}
           {/* Subject Cards */}
           {loading ? (
             <p className="text-sm text-gray-400 text-center py-4">جاري التحميل...</p>
@@ -443,7 +448,7 @@ export default function TeacherDashboard() {
         )}
 
         {/* Subjects Panel — scoped to the currently-active class */}
-        <SubjectsPanel showToast={showToast} currentClass={currentClass} />
+        <SubjectsPanel showToast={showToast} currentClass={currentClass} isHoliday={holiday?.isHoliday} />
 
         {/* Attendance Quick Toggle Banner */}
         <div className={`bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-3 transition-opacity ${holiday?.isHoliday ? 'opacity-40 pointer-events-none' : ''}`}>
@@ -510,6 +515,7 @@ export default function TeacherDashboard() {
             selectedIds={selectedIds}
             onSelect={handleSelect}
             onOpenModal={handleOpenModal}
+            isHoliday={holiday?.isHoliday}
           />
         )}
 
@@ -528,6 +534,7 @@ export default function TeacherDashboard() {
         onBulkPotty={handleBulkPotty}
         onBulkMood={handleBulkMood}
         onClearSelection={clearSelection}
+        isHoliday={holiday?.isHoliday}
       />
 
       {modalStudent && (
@@ -535,6 +542,7 @@ export default function TeacherDashboard() {
           student={modalStudent}
           onClose={() => setModalStudent(null)}
           onSave={mutateStudent}
+          isHoliday={holiday?.isHoliday}
         />
       )}
 
