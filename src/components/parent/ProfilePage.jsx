@@ -154,9 +154,9 @@ export default function ProfilePage() {
               { label: 'الصف',       value: cls?.name || child?.class_id || '—' },
               { label: 'المعلمة',    value: childData?.teacher?.name || '—' },
             ].map((row, i) => (
-              <div key={i} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
-                <span className="text-xs text-gray-400 font-medium">{row.label}</span>
-                <span className="text-sm text-gray-700 font-semibold" dir="ltr">{row.value}</span>
+              <div key={i} className="flex items-center gap-4 py-2 border-b border-gray-50 last:border-0">
+                <span className="w-16 text-xs text-gray-400 font-medium flex-shrink-0">{row.label}</span>
+                <span className="text-sm text-gray-700 font-semibold flex-1 text-right">{row.value}</span>
               </div>
             ))}
           </div>

@@ -92,20 +92,20 @@ export default function NotesPage() {
       <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="px-5 pt-5 pb-3">
           <div className="flex items-center gap-2 mb-3">
-            <div className="w-8 h-8 bg-blue-100 rounded-xl flex items-center justify-center">
-              <PenLine size={16} className="text-blue-600" />
+            <div className="w-9 h-9 bg-blue-100 rounded-xl flex items-center justify-center">
+              <PenLine size={18} className="text-blue-600" />
             </div>
-            <span className="font-bold text-gray-800 text-sm">أضف ملاحظة للمعلمة</span>
+            <span className="font-bold text-gray-800 text-base">إرسال ملاحظة للمعلمة</span>
           </div>
           <textarea
             value={parentNote}
             onChange={(e) => setParentNote(e.target.value)}
-            placeholder="اكتب ملاحظتك هنا... مثلاً: طفلي لم ينم جيداً الليلة، أو لديه حساسية من..."
-            className="w-full bg-gray-50 rounded-2xl p-4 text-sm text-gray-700 placeholder-gray-400 border border-gray-200 focus:outline-none focus:border-blue-400 focus:bg-white resize-none min-h-[120px]"
+            placeholder="اكتب ملاحظتك هنا... مثلاً: طفلي لم ينم جيداً الليلة، أو لديه حساسية من محددة..."
+            className="w-full bg-gray-50 rounded-2xl p-4 text-sm text-gray-700 placeholder-gray-400 border border-gray-200 focus:outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100 resize-none min-h-[160px] transition-all"
             style={{ fontFamily: 'Cairo, sans-serif' }}
           />
         </div>
-        <div className="px-5 pb-5">
+        <div className="px-5 pb-5 pt-2">
           <button
             onClick={handleSend}
             disabled={!parentNote.trim() || sending}

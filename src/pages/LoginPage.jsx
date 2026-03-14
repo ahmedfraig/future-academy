@@ -69,7 +69,7 @@ export function ChangePasswordModal({ onClose }) {
                   value={currentPass}
                   onChange={(e) => setCurrentPass(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-violet-400"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl pr-4 pl-10 py-3 text-sm focus:outline-none focus:border-violet-400"
                   dir="ltr"
                 />
                 <button type="button" onClick={() => setShowCurrent(s => !s)}
@@ -87,7 +87,7 @@ export function ChangePasswordModal({ onClose }) {
                   value={newPass}
                   onChange={(e) => setNewPass(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-violet-400"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl pr-4 pl-10 py-3 text-sm focus:outline-none focus:border-violet-400"
                   dir="ltr"
                 />
                 <button type="button" onClick={() => setShowNew(s => !s)}
@@ -234,7 +234,7 @@ function ForgotPasswordFlow({ onBack }) {
                 type={showPass ? 'text' : 'password'}
                 value={newPass} onChange={(e) => setNewPass(e.target.value)}
                 placeholder="••••••••"
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-violet-400"
+                className="w-full bg-gray-50 border border-gray-200 rounded-xl pr-4 pl-10 py-3 text-sm focus:outline-none focus:border-violet-400"
                 dir="ltr"
               />
               <button type="button" onClick={() => setShowPass(s => !s)}
@@ -400,7 +400,7 @@ export default function LoginPage() {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="••••••••"
-                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-violet-400 focus:bg-white transition-all"
+                        className="w-full bg-gray-50 border border-gray-200 rounded-xl pr-4 pl-10 py-3 text-sm focus:outline-none focus:border-violet-400 focus:bg-white transition-all"
                         dir="ltr"
                         autoComplete="current-password"
                       />

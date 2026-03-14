@@ -5,6 +5,7 @@ import { BulkActionBar } from './BulkActionBar';
 import { StudentModal } from './StudentModal';
 import { BookOpen, Plus, Trash2, CheckCircle2, X, ChevronDown, ChevronUp } from 'lucide-react';
 import api from '../../services/api';
+import LoadingState from '../ui/LoadingState';
 
 const moodOptions = [
   { emoji: '😄', label: 'سعيد' },
@@ -178,7 +179,7 @@ function SubjectsPanel({ showToast, currentClass }) {
                       <button
                         onClick={() => toggleTaught(s)}
                         className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 transition-all ${
-                          s.taught ? 'bg-emerald-500 text-white' : 'bg-white border-2 border-gray-300 text-gray-300'
+                          s.taught ? 'bg-emerald-500 text-white' : 'bg-white border-2 border-gray-400 text-gray-400 hover:border-gray-500'
                         }`}
                       >
                         <CheckCircle2 size={16} />
@@ -192,7 +193,7 @@ function SubjectsPanel({ showToast, currentClass }) {
                       {/* Delete */}
                       <button
                         onClick={() => handleDelete(s.id)}
-                        className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-300 hover:text-red-400 hover:bg-red-50 transition-all"
+                        className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"
                       >
                         <Trash2 size={13} />
                       </button>
@@ -283,7 +284,7 @@ function SubjectsPanel({ showToast, currentClass }) {
                 <button
                   onClick={handleAddSubject}
                   disabled={!newName.trim() || saving}
-                  className={`flex-1 py-2 rounded-xl font-bold text-sm transition-all ${newName.trim() && !saving ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
+                  className={`flex-1 py-2 rounded-xl font-bold text-sm transition-all ${newName.trim() && !saving ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-gray-200 text-gray-500 cursor-not-allowed'}`}
                 >
                   {saving ? '...' : '✅ إضافة'}
                 </button>
@@ -407,16 +408,7 @@ export default function TeacherDashboard() {
     setModalStudent(fresh);
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center" dir="rtl">
-        <div className="text-center">
-          <div className="text-5xl mb-4 animate-bounce">⏳</div>
-          <p className="text-gray-500 font-bold">جاري تحميل بيانات الفصل...</p>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <div className="min-h-screen bg-gray-50 flex items-center justify-center" dir="rtl"><LoadingState message="جاري تحميل بيانات الفصل..." /></div>;
 
   return (
     <div className="min-h-screen bg-gray-50" dir="rtl">
@@ -446,7 +438,7 @@ export default function TeacherDashboard() {
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border-2 transition-all active:scale-95 ${
                   s.present
                     ? 'bg-emerald-50 border-emerald-300 text-emerald-700 hover:bg-emerald-100'
-                    : 'bg-red-50 border-red-200 text-red-500 hover:bg-red-100'
+                    : 'bg-red-100 border-red-300 text-red-600 hover:bg-red-200'
                 }`}
               >
                 <span>{s.avatar}</span>

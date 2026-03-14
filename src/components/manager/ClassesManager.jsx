@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Pencil, Trash2, Users } from 'lucide-react';
 import api from '../../services/api';
 import { ConfirmDialog, FormModal, Field, inputCls, selectCls } from './shared/SharedComponents';
+import LoadingState from '../ui/LoadingState';
 
 const colorOptions = ['blue','green','purple','orange','pink','teal'];
 const gradeOptions = ['روضة أولى', 'روضة ثانية', 'تمهيدي'];
@@ -90,16 +91,7 @@ export default function ClassesManager() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="text-center">
-          <div className="text-4xl mb-3 animate-bounce">⏳</div>
-          <p className="text-gray-400 text-sm font-medium">جاري تحميل الفصول...</p>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <LoadingState message="جاري تحميل الفصول..." />;
 
   return (
     <div className="flex flex-col gap-5 animate-fade-in">

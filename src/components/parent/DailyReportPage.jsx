@@ -4,6 +4,7 @@ import {
   Clock, ChevronRight, ChevronLeft, Timer, ClipboardList
 } from 'lucide-react';
 import api from '../../services/api';
+import LoadingState from '../ui/LoadingState';
 
 // ── HELPERS ───────────────────────────────────
 function SectionCard({ icon, title, color, children, defaultOpen = true }) {
@@ -257,16 +258,7 @@ export default function DailyReportPage() {
 
   const report = reports[selectedIdx];
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="text-center">
-          <div className="text-4xl mb-3 animate-bounce">⏳</div>
-          <p className="text-gray-400 text-sm font-medium">جاري تحميل التقارير...</p>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <LoadingState message="جاري تحميل التقارير..." />;
 
   if (reports.length === 0) {
     return (

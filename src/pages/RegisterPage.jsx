@@ -220,7 +220,7 @@ export default function RegisterPage() {
                 <label className="text-xs font-bold text-gray-500">كلمة المرور *</label>
                 <div className="relative">
                   <input type={showPass ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••" className={inputCls} dir="ltr" autoComplete="new-password" />
+                    placeholder="••••••••" className={inputCls.replace('px-4', 'pr-4 pl-10')} dir="ltr" autoComplete="new-password" />
                   <button type="button" onClick={() => setShowPass((s) => !s)} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
                     {showPass ? <EyeOff size={14} /> : <Eye size={14} />}
                   </button>

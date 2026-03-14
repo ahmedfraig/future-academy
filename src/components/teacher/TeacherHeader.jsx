@@ -36,7 +36,7 @@ export function TeacherHeader({ currentClass, onClassChange, attendance, allClas
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap justify-end mt-2 sm:mt-0">
           {/* Attendance Counter */}
           <div className="bg-white/10 rounded-2xl px-4 py-2 border border-white/20">
             <div className="flex items-center gap-2">
@@ -127,7 +127,7 @@ export function GlobalAcademicForm() {
           <p className="text-xs text-gray-400">يتم تطبيقه على كل الطلاب</p>
         </div>
       </div>
-      <div className="grid grid-cols-3 gap-3 mb-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
         <div>
           <label className="block text-xs text-gray-500 font-medium mb-1">المادة</label>
           <input
@@ -169,7 +169,7 @@ export function GlobalAcademicForm() {
             ? 'bg-emerald-500 text-white'
             : form.subject && form.lesson
             ? 'bg-violet-600 hover:bg-violet-700 text-white'
-            : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+            : 'bg-gray-200 text-gray-500 cursor-not-allowed'
         }`}
       >
         {saved ? '✅ تم الحفظ لجميع الطلاب!' : '💾 حفظ وتطبيق على جميع الطلاب'}

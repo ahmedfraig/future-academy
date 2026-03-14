@@ -190,10 +190,10 @@ export function BottomNav({ activeTab, onTabChange }) {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
           return (
-            <button key={tab.id} onClick={() => onTabChange(tab.id)}
-              className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-2xl transition-all duration-200 ${isActive ? 'text-blue-600 bg-blue-50 scale-105' : 'text-gray-400 hover:text-gray-600'}`}>
+            <button key={tab.id} onClick={() => onTabChange(tab.id)} aria-label={tab.label} type="button"
+              className={`flex flex-col items-center gap-1 w-full max-w-[80px] py-1.5 rounded-2xl transition-all duration-200 ${isActive ? 'text-blue-600 bg-blue-50 scale-105' : 'text-gray-400 hover:text-gray-600'}`}>
               <Icon size={isActive ? 22 : 20} className={isActive ? 'text-blue-600' : 'text-gray-400'} />
-              <span className={`text-xs font-medium ${isActive ? 'text-blue-600' : 'text-gray-400'}`}>{tab.label}</span>
+              <span className={`text-[10px] sm:text-xs font-bold ${isActive ? 'text-blue-600' : 'text-gray-400'}`}>{tab.label}</span>
             </button>
           );
         })}

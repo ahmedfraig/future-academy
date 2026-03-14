@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Users, School, GraduationCap, TrendingUp, AlertCircle, Activity } from 'lucide-react';
 import api from '../../services/api';
+import LoadingState from '../ui/LoadingState';
 
 function StatCard({ icon, label, value, sub, gradient, emoji }) {
   return (
@@ -8,10 +9,10 @@ function StatCard({ icon, label, value, sub, gradient, emoji }) {
       <div className="flex items-start justify-between">
         <div>
           <p className="text-sm font-medium opacity-80">{label}</p>
-          <p className="text-4xl font-black mt-1">{value}</p>
+          <p className="text-5xl font-black mt-1">{value}</p>
           {sub && <p className="text-xs mt-1 opacity-70">{sub}</p>}
         </div>
-        <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center">{icon}</div>
+        <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center">{icon}</div>
       </div>
       <div className="absolute -bottom-4 -left-4 text-6xl opacity-10 select-none pointer-events-none">{emoji}</div>
     </div>
@@ -48,16 +49,7 @@ export default function OverviewPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="text-center">
-          <div className="text-4xl mb-3 animate-bounce">⏳</div>
-          <p className="text-gray-400 text-sm font-medium">جاري تحميل لوحة المعلومات...</p>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <LoadingState message="جاري تحميل لوحة المعلومات..." />;
 
   if (!data) {
     return (

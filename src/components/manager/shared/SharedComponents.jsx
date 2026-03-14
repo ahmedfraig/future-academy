@@ -49,14 +49,13 @@ export function ConfirmDialog({ isOpen, title, message, onConfirm, onCancel, con
 export function FormModal({ isOpen, title, icon, onClose, onSave, saveLabel = "حفظ", children, saving = false }) {
   if (!isOpen) return null;
   return (
-    <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 overflow-y-auto" onClick={onClose}>
+    <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/40 backdrop-blur-sm p-2 sm:p-4 overflow-y-auto" onClick={onClose}>
       <div
         className="bg-white rounded-3xl shadow-2xl w-full max-w-md my-auto animate-slide-up"
         onClick={(e) => e.stopPropagation()}
         dir="rtl"
       >
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 sm:py-5 border-b border-gray-100">
           <div className="flex items-center gap-3">
             {icon && <span className="text-2xl">{icon}</span>}
             <h3 className="font-bold text-gray-800 text-base">{title}</h3>
@@ -69,9 +68,9 @@ export function FormModal({ isOpen, title, icon, onClose, onSave, saveLabel = "�
           </button>
         </div>
         {/* Body */}
-        <div className="px-6 py-5 flex flex-col gap-4">{children}</div>
+        <div className="px-4 sm:px-6 py-4 sm:py-5 flex flex-col gap-4">{children}</div>
         {/* Footer */}
-        <div className="px-6 pb-6 flex gap-3">
+        <div className="px-4 sm:px-6 pb-4 sm:pb-6 flex gap-3">
           <button
             onClick={onClose}
             className="flex-1 py-3 rounded-2xl font-bold text-sm bg-gray-100 text-gray-600 hover:bg-gray-200 transition-all"

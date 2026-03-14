@@ -322,7 +322,7 @@ export function StudentModal({ student, onClose, onSave }) {
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border-2 transition-all active:scale-95 ${
                   fields.present
                     ? 'bg-emerald-50 border-emerald-300 text-emerald-700'
-                    : 'bg-red-50 border-red-200 text-red-500'
+                    : 'bg-red-100 border-red-300 text-red-600'
                 }`}
               >
                 {fields.present ? <><CheckCircle size={14}/>حاضر</> : <><XCircle size={14}/>غائب</>}
@@ -380,7 +380,7 @@ export function StudentModal({ student, onClose, onSave }) {
             {/* 2. المزاج */}
             <div className="bg-blue-50 rounded-2xl p-4">
               <p className="text-xs font-bold text-blue-600 flex items-center gap-1.5 mb-3"><Heart size={14}/> المزاج والمشاعر</p>
-              <div className="flex gap-3 justify-around">
+              <div className="flex flex-wrap gap-3 justify-center">
                 {moods.map((m) => (
                   <button key={m} onClick={() => set('mood', m)}
                     className={`text-2xl transition-all ${fields.mood === m ? 'scale-125 drop-shadow-md' : 'opacity-50 hover:opacity-80 hover:scale-110'}`}>

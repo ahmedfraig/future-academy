@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeftRight, UserCheck, Users, CheckCircle } from 'lucide-react';
 import api from '../../services/api';
+import LoadingState from '../ui/LoadingState';
 
 export default function AssignmentsPage() {
   const [classes, setClasses]   = useState([]);
@@ -72,16 +73,7 @@ export default function AssignmentsPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="text-center">
-          <div className="text-4xl mb-3 animate-bounce">⏳</div>
-          <p className="text-gray-400 text-sm font-medium">جاري تحميل بيانات التعيينات...</p>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <LoadingState message="جاري تحميل بيانات التعيينات..." />;
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
@@ -156,23 +148,23 @@ export default function AssignmentsPage() {
                 </span>
               )}
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-64 overflow-y-auto">
+            <div className="flex flex-col gap-2 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
               {studentsInSource.map((s) => (
                 <button
                   key={s.id}
                   onClick={() => toggleStu(s.id)}
-                  className={`flex flex-col items-center gap-1 p-3 rounded-2xl border-2 transition-all ${
+                  className={`flex items-center gap-3 p-3 rounded-2xl border-2 transition-all text-right ${
                     selectedStu.includes(s.id)
                       ? 'bg-amber-50 border-amber-400'
                       : 'bg-gray-50 border-gray-200 hover:border-amber-200'
                   }`}
                 >
                   <span className="text-2xl">{s.avatar}</span>
-                  <span className="text-xs font-bold text-gray-600 text-center leading-tight">{s.name.split(' ')[0]}</span>
-                  {selectedStu.includes(s.id) && <CheckCircle size={12} className="text-amber-500" />}
+                  <span className="text-sm font-bold text-gray-700 flex-1 truncate">{s.name}</span>
+                  {selectedStu.includes(s.id) && <CheckCircle size={16} className="text-amber-500" />}
                 </button>
               ))}
-              {studentsInSource.length === 0 && <p className="col-span-3 text-center text-sm text-gray-400 py-4">لا يوجد طلاب</p>}
+              {studentsInSource.length === 0 && <p className="text-center text-sm text-gray-400 py-4">لا يوجد طلاب</p>}
             </div>
           </div>
 

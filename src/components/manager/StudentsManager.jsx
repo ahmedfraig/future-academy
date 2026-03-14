@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, Plus, Pencil, Trash2, CheckCircle, XCircle, KeyRound, Copy, X, MessageSquare, ShieldAlert } from 'lucide-react';
 import api from '../../services/api';
 import { ConfirmDialog, FormModal, Field, inputCls, selectCls } from './shared/SharedComponents';
+import LoadingState from '../ui/LoadingState';
 
 const emptyForm = { name: '', gender: 'ذكر', age: '', classId: '', parentName: '', phone: '', avatar: '👦', medication: false };
 
@@ -158,16 +159,7 @@ export default function StudentsManager() {
     } catch { showToast('❌ فشل تحديث الحضور'); }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="text-center">
-          <div className="text-4xl mb-3 animate-bounce">⏳</div>
-          <p className="text-gray-400 text-sm font-medium">جاري تحميل بيانات الطلاب...</p>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <LoadingState message="جاري تحميل بيانات الطلاب..." />;
 
   return (
     <div className="flex flex-col gap-5 animate-fade-in">
@@ -216,9 +208,9 @@ export default function StudentsManager() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm" style={{ fontFamily: 'Cairo, sans-serif' }}>
             <thead>
-              <tr className="bg-gray-50 border-b border-gray-100">
+              <tr className="bg-gray-100/50 border-b border-gray-100">
                 {['الطالب', 'الحضور', 'الجنس', 'العمر', 'الفصل', 'ولي الأمر', 'رقم الجوال', 'الدواء', 'رمز الدعوة', 'الإجراءات'].map((h) => (
-                  <th key={h} className="px-4 py-3 text-right font-bold text-gray-500 text-xs whitespace-nowrap">{h}</th>
+                  <th key={h} className="px-4 py-3 text-right font-bold text-gray-400 uppercase tracking-wider text-xs whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
