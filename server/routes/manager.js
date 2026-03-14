@@ -285,6 +285,11 @@ router.delete('/teachers/:id', ...guard, async (req, res) => {
 // ── ANNOUNCEMENTS ─────────────────────────────────────────────
 router.get('/announcements', ...guard, async (req, res) => {
   try {
+    // Clean up expired holiday announcements (past the holiday date)
+    await db.query(
+      `DELETE FROM announcements
+       WHERE linked_holiday_id IS NOT NULL AND expires_at < CURRENT_DATE`
+    );
     const { rows } = await db.query('SELECT * FROM announcements ORDER BY created_at DESC');
     res.json(rows);
   } catch (err) { res.status(500).json({ error: 'خطأ في جلب الإعلانات' }); }
@@ -650,7 +655,27 @@ router.post('/holidays', ...guard, async (req, res) => {
        VALUES ($1, $2, $3, $4) RETURNING *`,
       [type, type === 'weekly' ? day_of_week : null, type === 'special' ? date : null, label || '']
     );
-    res.status(201).json(rows[0]);
+    const holiday = rows[0];
+
+    // Auto-create an announcement for special holidays
+    if (type === 'special') {
+      const formattedDate = new Date(date).toLocaleDateString('ar-SA', {
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+      });
+      await db.query(
+        `INSERT INTO announcements (title, body, color, target, expires_at, linked_holiday_id)
+         VALUES ($1, $2, $3, 'all', $4::date, $5)`,
+        [
+          `🏖️ إجازة: ${label || 'إجازة خاصة'}`,
+          `يسعدنا إخباركم بأن يوم ${formattedDate} سيكون إجازة. الغياب في هذا اليوم لا يُحتسب.`,
+          'yellow',
+          date,
+          holiday.id,
+        ]
+      );
+    }
+
+    res.status(201).json(holiday);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'خطأ في إضافة الإجازة' });

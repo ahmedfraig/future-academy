@@ -120,7 +120,8 @@ router.get('/announcements', ...guard, async (req, res) => {
     const classId  = childRes.rows[0]?.class_id;
     const { rows } = await db.query(
       `SELECT * FROM announcements
-       WHERE target = 'all' OR target = $1
+       WHERE (target = 'all' OR target = $1)
+         AND (expires_at IS NULL OR expires_at >= CURRENT_DATE)
        ORDER BY created_at DESC`,
       [classId || '']
     );
@@ -164,11 +165,12 @@ router.get('/notifications', ...guard, async (req, res) => {
     const childRes = await db.query('SELECT class_id FROM students WHERE id = $1', [childId]);
     const classId  = childRes.rows[0]?.class_id;
 
-    // Fetch announcements
+    // Fetch announcements (excluding past-holiday announcements)
     const { rows: annRows } = await db.query(
       `SELECT id, title AS title, body AS body, color, created_at
        FROM announcements
-       WHERE target = 'all' OR target = $1
+       WHERE (target = 'all' OR target = $1)
+         AND (expires_at IS NULL OR expires_at >= CURRENT_DATE)
        ORDER BY created_at DESC
        LIMIT 20`,
       [classId || '']

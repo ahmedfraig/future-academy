@@ -364,6 +364,7 @@ export default function TeacherDashboard() {
   const clearSelection = () => setSelectedIds([]);
 
   const handleToggleAttendance = async (student) => {
+    if (holiday?.isHoliday) return; // blocked on holiday days
     const newPresent = !student.present;
     try {
       const { data } = await api.patch(`/teacher/students/${student.id}/attendance`, {

@@ -318,14 +318,22 @@ export function StudentModal({ student, onClose, onSave, isHoliday }) {
                 )}
               </button>
               <button
-                onClick={() => set('present', !fields.present)}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border-2 transition-all active:scale-95 ${
-                  fields.present
-                    ? 'bg-emerald-50 border-emerald-300 text-emerald-700'
-                    : 'bg-red-100 border-red-300 text-red-600'
+                onClick={() => !isHoliday && set('present', !fields.present)}
+                disabled={!!isHoliday}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border-2 transition-all ${
+                  isHoliday
+                    ? 'bg-orange-50 border-orange-200 text-orange-500 cursor-not-allowed opacity-60'
+                    : fields.present
+                    ? 'bg-emerald-50 border-emerald-300 text-emerald-700 active:scale-95'
+                    : 'bg-red-100 border-red-300 text-red-600 active:scale-95'
                 }`}
               >
-                {fields.present ? <><CheckCircle size={14}/>حاضر</> : <><XCircle size={14}/>غائب</>}
+                {isHoliday
+                  ? <><span>🏖️</span>إجازة</>
+                  : fields.present
+                  ? <><CheckCircle size={14}/>حاضر</>
+                  : <><XCircle size={14}/>غائب</>
+                }
               </button>
               <button onClick={onClose} className="w-8 h-8 bg-white/80 rounded-xl flex items-center justify-center hover:bg-white">
                 <X size={16} className="text-gray-500" />
