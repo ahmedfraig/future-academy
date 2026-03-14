@@ -106,12 +106,16 @@ export function TeacherHeader({ currentClass, onClassChange, attendance, allClas
     {showChangePw && <ChangePasswordModal onClose={() => setShowChangePw(false)} />}
     {showMessages && (
       <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowMessages(false)}>
-        <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-md max-h-[85vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-md max-h-[85vh] flex flex-col overflow-hidden"
+          onClick={(e) => e.stopPropagation()}
+          onWheel={(e) => e.stopPropagation()}
+        >
           <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 flex-shrink-0">
             <p className="font-bold text-gray-800 text-sm">رسائل الإدارة</p>
             <button onClick={() => setShowMessages(false)} className="text-gray-400 hover:text-gray-600 text-lg font-bold">×</button>
           </div>
-          <div className="flex-1 overflow-hidden">
+          <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
             <TeacherMessagesPage />
           </div>
         </div>

@@ -42,7 +42,7 @@ export default function TeacherMessagesPage() {
     ts ? new Date(ts).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }) : '';
 
   return (
-    <div className="flex flex-col h-full min-h-screen bg-gray-50" dir="rtl">
+    <div className="flex flex-col h-full bg-gray-50" dir="rtl">
       {/* Header */}
       <div className="bg-gradient-to-l from-violet-600 to-purple-600 px-5 py-4 flex items-center gap-3 flex-shrink-0">
         <div className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center">
@@ -55,7 +55,7 @@ export default function TeacherMessagesPage() {
       </div>
 
       {/* Chat area */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-3">
+      <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-4 flex flex-col gap-3">
         {loading ? (
           <div className="flex-1 flex items-center justify-center py-20">
             <p className="text-gray-400 text-sm">جاري التحميل...</p>
