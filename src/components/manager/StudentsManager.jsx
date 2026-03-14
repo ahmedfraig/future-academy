@@ -203,8 +203,87 @@ export default function StudentsManager() {
         </span>
       </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+      {/* ── Mobile Cards (< lg) ── */}
+      <div className="lg:hidden flex flex-col gap-3">
+        {filtered.length === 0 ? (
+          <div className="text-center py-12 text-gray-400 bg-white rounded-2xl border border-gray-100">
+            <p className="text-3xl mb-2">🤷</p>
+            <p className="text-sm font-medium">لا توجد نتائج</p>
+          </div>
+        ) : filtered.map((s) => (
+          <div key={s.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col gap-3">
+            {/* Top row: avatar + name + attendance */}
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">{s.avatar}</span>
+              <div className="flex-1">
+                <p className="font-bold text-gray-800 text-sm">{s.name}</p>
+                <p className="text-xs text-gray-400">{s.class_id} · {s.gender} · {s.age} سنوات</p>
+              </div>
+              <button
+                onClick={() => handleToggleAttendance(s)}
+                className={`flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-xl border transition-all ${
+                  s.present
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                    : 'bg-red-50 border-red-200 text-red-500'
+                }`}
+              >
+                {s.present ? <><CheckCircle size={11}/> حاضر</> : <><XCircle size={11}/> غائب</>}
+              </button>
+            </div>
+
+            {/* Info row */}
+            <div className="flex flex-wrap gap-2 text-xs">
+              {s.parent_name && (
+                <span className="bg-gray-50 border border-gray-200 text-gray-600 px-2.5 py-1 rounded-xl">
+                  👨‍👩 {s.parent_name}
+                </span>
+              )}
+              {s.phone && (
+                <span className="bg-gray-50 border border-gray-200 text-gray-500 px-2.5 py-1 rounded-xl" dir="ltr">
+                  📞 {s.phone}
+                </span>
+              )}
+              {s.medication && (
+                <span className="bg-orange-50 border border-orange-200 text-orange-600 font-bold px-2.5 py-1 rounded-xl">
+                  💊 يحتاج دواء
+                </span>
+              )}
+              {s.invite_code_hash && (
+                <span className="bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold px-2.5 py-1 rounded-xl flex items-center gap-1">
+                  <KeyRound size={10}/> رمز مُولَّد
+                </span>
+              )}
+            </div>
+
+            {/* Action row */}
+            <div className="flex gap-2 border-t border-gray-50 pt-2">
+              <button onClick={() => openNotes(s)}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-purple-50 hover:bg-purple-100 rounded-xl text-purple-600 text-xs font-bold transition-colors">
+                <MessageSquare size={13}/> رسائل
+              </button>
+              <button onClick={() => generateCode(s)} disabled={generatingId === s.id}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-amber-50 hover:bg-amber-100 rounded-xl text-amber-600 text-xs font-bold transition-colors disabled:opacity-40">
+                {generatingId === s.id ? <span className="animate-spin">⟳</span> : <KeyRound size={13}/>} رمز
+              </button>
+              <button onClick={() => generateResetKey(s)} disabled={generatingResetId === s.id}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-red-50 hover:bg-red-100 rounded-xl text-red-500 text-xs font-bold transition-colors disabled:opacity-40">
+                {generatingResetId === s.id ? <span className="animate-spin">⟳</span> : <ShieldAlert size={13}/>} تعيين
+              </button>
+              <button onClick={() => openEdit(s)}
+                className="w-9 h-9 bg-blue-50 hover:bg-blue-100 rounded-xl flex items-center justify-center transition-colors">
+                <Pencil size={14} className="text-blue-600"/>
+              </button>
+              <button onClick={() => setConfirmId(s.id)}
+                className="w-9 h-9 bg-red-50 hover:bg-red-100 rounded-xl flex items-center justify-center transition-colors">
+                <Trash2 size={14} className="text-red-500"/>
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Desktop Table (lg+) ── */}
+      <div className="hidden lg:block bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm" style={{ fontFamily: 'Cairo, sans-serif' }}>
             <thead>
@@ -260,15 +339,11 @@ export default function StudentsManager() {
                       </button>
                       <button onClick={() => generateCode(s)} disabled={generatingId === s.id}
                         className="w-8 h-8 bg-amber-50 hover:bg-amber-100 rounded-xl flex items-center justify-center transition-colors disabled:opacity-40" title="توليد رمز دعوة">
-                        {generatingId === s.id
-                          ? <span className="animate-spin text-xs">⟳</span>
-                          : <KeyRound size={13} className="text-amber-600" />}
+                        {generatingId === s.id ? <span className="animate-spin text-xs">⟳</span> : <KeyRound size={13} className="text-amber-600" />}
                       </button>
                       <button onClick={() => generateResetKey(s)} disabled={generatingResetId === s.id}
                         className="w-8 h-8 bg-red-50 hover:bg-red-100 rounded-xl flex items-center justify-center transition-colors disabled:opacity-40" title="رمز إعادة كلمة مرور ولي الأمر">
-                        {generatingResetId === s.id
-                          ? <span className="animate-spin text-xs">⟳</span>
-                          : <ShieldAlert size={13} className="text-red-500" />}
+                        {generatingResetId === s.id ? <span className="animate-spin text-xs">⟳</span> : <ShieldAlert size={13} className="text-red-500" />}
                       </button>
                       <button onClick={() => openEdit(s)} className="w-8 h-8 bg-blue-50 hover:bg-blue-100 rounded-xl flex items-center justify-center transition-colors" title="تعديل">
                         <Pencil size={13} className="text-blue-600" />

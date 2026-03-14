@@ -43,7 +43,7 @@ export default function ManagerDashboard() {
       {sidebarOpen && (
         <div className="fixed inset-0 z-[100] flex lg:hidden">
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
-          <div className="relative z-10 animate-slide-up">
+          <div className="relative z-10 animate-slide-up overflow-y-auto max-h-screen">
             <ManagerSidebar active={activePage} onNavigate={handleNavigate} />
           </div>
         </div>
