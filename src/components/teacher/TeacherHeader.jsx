@@ -107,7 +107,7 @@ export function TeacherHeader({ currentClass, onClassChange, attendance, allClas
     {showMessages && (
       <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowMessages(false)}>
         <div
-          className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-md max-h-[85vh] flex flex-col overflow-hidden"
+          className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-md h-[85vh] flex flex-col overflow-hidden"
           onClick={(e) => e.stopPropagation()}
           onWheel={(e) => e.stopPropagation()}
         >
@@ -115,7 +115,7 @@ export function TeacherHeader({ currentClass, onClassChange, attendance, allClas
             <p className="font-bold text-gray-800 text-sm">رسائل الإدارة</p>
             <button onClick={() => setShowMessages(false)} className="text-gray-400 hover:text-gray-600 text-lg font-bold">×</button>
           </div>
-          <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+          <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
             <TeacherMessagesPage />
           </div>
         </div>
