@@ -133,7 +133,7 @@ router.post('/notes', ...guard, async (req, res) => {
 });
 
 // ── GET /api/parent/notifications ────────────────────────────
-// Unified notification feed: announcements + teacher notes (newest first)
+// Unified notification feed: announcements + teacher notes + manager messages
 router.get('/notifications', ...guard, async (req, res) => {
   try {
     const { childId } = req.user;
@@ -163,6 +163,18 @@ router.get('/notifications', ...guard, async (req, res) => {
       [childId]
     );
 
+    // Fetch manager messages for this parent
+    const { rows: msgRows } = await db.query(
+      `SELECT id, text, from_name, created_at
+       FROM messages
+       WHERE conversation_type = 'manager_parent'
+         AND participant_id = $1
+         AND from_role = 'manager'
+       ORDER BY created_at DESC
+       LIMIT 20`,
+      [String(childId)]
+    );
+
     // Merge and sort
     const notifications = [
       ...annRows.map((a) => ({
@@ -180,6 +192,14 @@ router.get('/notifications', ...guard, async (req, res) => {
         title:      `ملاحظة من ${n.from_name || 'المعلمة'}`,
         body:       n.text,
         created_at: n.created_at,
+      })),
+      ...msgRows.map((m) => ({
+        id:         `msg-${m.id}`,
+        type:       'message',
+        icon:       '🏢',
+        title:      'رسالة من الإدارة',
+        body:       m.text,
+        created_at: m.created_at,
       })),
     ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 

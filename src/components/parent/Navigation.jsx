@@ -177,6 +177,28 @@ export function TopHeader() {
 
 // ── BOTTOM NAV ─────────────────────────────────
 export function BottomNav({ activeTab, onTabChange }) {
+  const [notesUnread, setNotesUnread] = useState(0);
+
+  // Poll for new messages/notes every 60s and show badge on Notes tab
+  useEffect(() => {
+    const stored = localStorage.getItem('notif_read');
+    const readIds = new Set(stored ? JSON.parse(stored) : []);
+
+    const fetchUnread = async () => {
+      try {
+        const { data } = await api.get('/parent/notifications');
+        const unread = data.filter(
+          (n) => !readIds.has(n.id) && (n.type === 'note' || n.type === 'message')
+        ).length;
+        setNotesUnread(unread);
+      } catch {}
+    };
+
+    fetchUnread();
+    const id = setInterval(fetchUnread, 60000);
+    return () => clearInterval(id);
+  }, []);
+
   const tabs = [
     { id: 'home',    icon: Home,         label: 'الرئيسية' },
     { id: 'report',  icon: FileText,      label: 'التقرير اليومي' },
@@ -189,10 +211,34 @@ export function BottomNav({ activeTab, onTabChange }) {
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
+          const showBadge = tab.id === 'notes' && notesUnread > 0;
           return (
-            <button key={tab.id} onClick={() => onTabChange(tab.id)} aria-label={tab.label} type="button"
-              className={`flex flex-col items-center gap-1 w-full max-w-[80px] py-1.5 rounded-2xl transition-all duration-200 ${isActive ? 'text-blue-600 bg-blue-50 scale-105' : 'text-gray-400 hover:text-gray-600'}`}>
+            <button key={tab.id} onClick={async () => {
+              if (tab.id === 'notes') {
+                setNotesUnread(0);
+                // Auto-mark all note + message notifications as read in localStorage
+                try {
+                  const { data } = await api.get('/parent/notifications');
+                  const toMark = data
+                    .filter((n) => n.type === 'note' || n.type === 'message')
+                    .map((n) => n.id);
+                  if (toMark.length > 0) {
+                    const stored = localStorage.getItem('notif_read');
+                    const existing = new Set(stored ? JSON.parse(stored) : []);
+                    toMark.forEach((id) => existing.add(id));
+                    localStorage.setItem('notif_read', JSON.stringify([...existing]));
+                  }
+                } catch {}
+              }
+              onTabChange(tab.id);
+            }} aria-label={tab.label} type="button"
+              className={`relative flex flex-col items-center gap-1 w-full max-w-[80px] py-1.5 rounded-2xl transition-all duration-200 ${isActive ? 'text-blue-600 bg-blue-50 scale-105' : 'text-gray-400 hover:text-gray-600'}`}>
               <Icon size={isActive ? 22 : 20} className={isActive ? 'text-blue-600' : 'text-gray-400'} />
+              {showBadge && (
+                <span className="absolute top-0.5 right-3 w-4 h-4 bg-red-500 text-white text-[9px] font-black rounded-full flex items-center justify-center">
+                  {notesUnread > 9 ? '9+' : notesUnread}
+                </span>
+              )}
               <span className={`text-[10px] sm:text-xs font-bold ${isActive ? 'text-blue-600' : 'text-gray-400'}`}>{tab.label}</span>
             </button>
           );
@@ -201,3 +247,4 @@ export function BottomNav({ activeTab, onTabChange }) {
     </nav>
   );
 }
+

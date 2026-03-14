@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Users, ChevronDown, UsersRound, CheckCircle2, XCircle, LogOut, KeyRound, MessageCircle
 } from 'lucide-react';
@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { ChangePasswordModal } from '../../pages/LoginPage';
 import TeacherMessagesPage from './TeacherMessagesPage';
+import api from '../../services/api';
 
 // =============================================
 // TEACHER HEADER
@@ -14,11 +15,27 @@ export function TeacherHeader({ currentClass, onClassChange, attendance, allClas
   const [open, setOpen] = useState(false);
   const [showChangePw, setShowChangePw] = useState(false);
   const [showMessages, setShowMessages] = useState(false);
+  const [unread, setUnread] = useState(0);
   const { present, total } = attendance;
   const pct = Math.round((present / total) * 100) || 0;
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const handleLogout = () => { logout(); navigate('/login'); };
+
+  // Poll for unread manager messages every 30s
+  useEffect(() => {
+    const fetchUnread = () => {
+      api.get('/teacher/notifications').then(({ data }) => setUnread(data.unread || 0)).catch(() => {});
+    };
+    fetchUnread();
+    const id = setInterval(fetchUnread, 30000);
+    return () => clearInterval(id);
+  }, []);
+
+  const handleOpenMessages = () => {
+    setShowMessages(true);
+    setUnread(0); // clear badge on open
+  };
 
   // Use passed allClasses from API data
   const classList = allClasses || [];
@@ -80,11 +97,16 @@ export function TeacherHeader({ currentClass, onClassChange, attendance, allClas
 
           {/* Manager Messages */}
           <button
-            onClick={() => setShowMessages(true)}
-            className="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-2xl px-3 py-2 transition-all"
+            onClick={handleOpenMessages}
+            className="relative flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-2xl px-3 py-2 transition-all"
             title="رسائل المدير"
           >
             <MessageCircle size={15} className="text-purple-200" />
+            {unread > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center">
+                {unread > 9 ? '9+' : unread}
+              </span>
+            )}
           </button>
 
           {/* Change Password */}

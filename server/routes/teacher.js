@@ -15,6 +15,28 @@ const upsertReport = (client, studentId, fields) => client.query(
   [studentId, ...Object.values(fields)]
 );
 
+// ── GET /api/teacher/notifications ──────────────────────────────
+// Returns count of unread messages from manager + parent daily-report replies
+router.get('/notifications', ...guard, async (req, res) => {
+  try {
+    const { teacherId } = req.user;
+    if (!teacherId) return res.json({ unread: 0 });
+
+    // Unread manager → teacher messages
+    const { rows: msgRows } = await db.query(
+      `SELECT COUNT(*) FROM messages
+       WHERE conversation_type = 'manager_teacher'
+         AND participant_id = $1
+         AND from_role = 'manager'`,
+      [String(teacherId)]
+    );
+
+    res.json({ unread: parseInt(msgRows[0].count) });
+  } catch (err) {
+    res.status(500).json({ error: 'خطأ في جلب الإشعارات' });
+  }
+});
+
 // ── GET /api/teacher/my-class ──────────────────────────────────
 router.get('/my-class', ...guard, async (req, res) => {
   try {

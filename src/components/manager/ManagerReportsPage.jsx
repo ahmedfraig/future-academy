@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   ClipboardList, ChevronDown, ChevronUp, Users, Star,
-  Clock, Utensils, Baby, Heart, BookOpen, Search
+  Clock, Utensils, Baby, Heart, BookOpen, Search, MessageSquare
 } from 'lucide-react';
 import api from '../../services/api';
 
@@ -47,9 +47,24 @@ const mealLabels = {
 
 function StudentReportCard({ student }) {
   const [expanded, setExpanded] = useState(false);
+  const [notes, setNotes]       = useState([]);
+  const [notesLoaded, setNotesLoaded] = useState(false);
   const meals = student.meals || {};
   const potty = Array.isArray(student.potty) ? student.potty : [];
   const behavior = parseBehaviorLabel(student.behavior);
+
+  // Lazy-load teacher-parent notes when card is first expanded
+  useEffect(() => {
+    if (expanded && !notesLoaded) {
+      api.get(`/manager/students/${student.id}/notes`)
+        .then(({ data }) => setNotes(data))
+        .catch(() => {})
+        .finally(() => setNotesLoaded(true));
+    }
+  }, [expanded, student.id]);
+
+  const fmtTime = (ts) =>
+    ts ? new Date(ts).toLocaleString('ar-SA', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -133,6 +148,37 @@ function StudentReportCard({ student }) {
               <span className={`text-xs font-bold px-3 py-1 rounded-xl ${MOOD_COLORS[behavior] || 'bg-gray-100 text-gray-600'}`}>{behavior}</span>
             </div>
           )}
+
+          {/* Teacher ↔ Parent Notes */}
+          <div className="border-t border-gray-100 pt-3">
+            <div className="flex items-center gap-1.5 mb-2">
+              <MessageSquare size={13} className="text-purple-500" />
+              <p className="text-xs font-bold text-purple-600">محادثة المعلمة وولي الأمر</p>
+            </div>
+            {!notesLoaded ? (
+              <p className="text-xs text-gray-400 text-center py-2">جاري التحميل...</p>
+            ) : notes.length === 0 ? (
+              <p className="text-xs text-gray-400 text-center py-2">لا توجد محادثات بعد</p>
+            ) : (
+              <div className="flex flex-col gap-1.5 max-h-40 overflow-y-auto overscroll-contain">
+                {notes.map((n) => (
+                  <div key={n.id} className={`flex ${n.from_role === 'teacher' ? 'justify-start' : 'justify-end'}`}>
+                    <div className={`max-w-[80%] rounded-xl px-3 py-1.5 ${
+                      n.from_role === 'teacher'
+                        ? 'bg-indigo-50 border border-indigo-100 text-gray-700'
+                        : 'bg-purple-100 text-purple-900'
+                    }`}>
+                      <p className="text-[10px] font-bold text-gray-400 mb-0.5">
+                        {n.from_role === 'teacher' ? '👩‍🏫' : '👨‍👩'} {n.from_name}
+                      </p>
+                      <p className="text-xs">{n.text}</p>
+                      <p className="text-[9px] text-gray-400 mt-0.5">{fmtTime(n.created_at)}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

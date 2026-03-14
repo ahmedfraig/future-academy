@@ -123,7 +123,22 @@ router.patch('/students/:id/class', ...guard, async (req, res) => {
   } catch (err) { res.status(500).json({ error: 'خطأ في نقل الطالب' }); }
 });
 
-// ── CLASSES ───────────────────────────────────────────────────
+// ── GET /api/manager/students/:id/notes ───────────────────────
+// Manager reads the full teacher↔parent notes conversation for a student
+router.get('/students/:id/notes', ...guard, async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT * FROM notes WHERE student_id = $1 ORDER BY created_at ASC`,
+      [req.params.id]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'خطأ في جلب الملاحظات' });
+  }
+});
+
+
 router.get('/classes', ...guard, async (req, res) => {
   try {
     const { rows } = await db.query(`
