@@ -439,22 +439,31 @@ export default function DailyReportPage() {
         </div>
       )}
 
-      {/* Subjects & Assignments for today */}
-      <SectionCard icon={<BookOpen size={18}/>} title="مواد اليوم والواجبات" color="blue">
-        <SubjectsSection subjects={subjects} />
-      </SectionCard>
+      {/* Subjects, Meals, Potty, Behavior — dimmed on holidays */}
+      <div className={`flex flex-col gap-4 transition-opacity ${holiday?.isHoliday ? 'opacity-40 pointer-events-none' : ''}`}>
+        {holiday?.isHoliday && (
+          <div className="bg-orange-50 border border-orange-200 rounded-2xl px-4 py-3 text-center">
+            <p className="text-xs font-bold text-orange-600">🏖️ لم يتم التسجيل في أيام الإجازة</p>
+          </div>
+        )}
 
-      <SectionCard icon={<Utensils size={18}/>} title="الطعام والوجبات" color="green">
-        <MealsSection meals={report?.meals} />
-      </SectionCard>
+        {/* Subjects & Assignments for today */}
+        <SectionCard icon={<BookOpen size={18}/>} title="مواد اليوم والواجبات" color="blue">
+          <SubjectsSection subjects={subjects} />
+        </SectionCard>
 
-      <SectionCard icon={<Baby size={18}/>} title="التويلت" color="yellow">
-        <PottySection potty={report?.potty} />
-      </SectionCard>
+        <SectionCard icon={<Utensils size={18}/>} title="الطعام والوجبات" color="green">
+          <MealsSection meals={report?.meals} />
+        </SectionCard>
 
-      <SectionCard icon={<Heart size={18}/>} title="السلوك والمزاج" color="pink">
-        <BehaviorSection behavior={report?.behavior} />
-      </SectionCard>
+        <SectionCard icon={<Baby size={18}/>} title="التويلت" color="yellow">
+          <PottySection potty={report?.potty} />
+        </SectionCard>
+
+        <SectionCard icon={<Heart size={18}/>} title="السلوك والمزاج" color="pink">
+          <BehaviorSection behavior={report?.behavior} />
+        </SectionCard>
+      </div>
     </div>
   );
 }

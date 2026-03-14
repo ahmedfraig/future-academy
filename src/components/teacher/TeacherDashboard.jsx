@@ -319,6 +319,7 @@ export default function TeacherDashboard() {
   const [selectedIds, setSelectedIds]     = useState([]);
   const [modalStudent, setModalStudent]   = useState(null);
   const [toastMsg, setToastMsg]           = useState(null);
+  const [holiday, setHoliday]             = useState(null); // { isHoliday, label }
 
   const showToast = (msg) => { setToastMsg(msg); setTimeout(() => setToastMsg(null), 2500); };
 
@@ -339,6 +340,14 @@ export default function TeacherDashboard() {
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Check if today is a holiday
+  useEffect(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    api.get('/manager/holidays/check', { params: { date: today } })
+      .then(({ data }) => setHoliday(data))
+      .catch(() => {});
+  }, []);
 
   const students = allStu.filter((s) => s.class_id === currentClass);
   const presentCount = students.filter((s) => s.present).length;
@@ -422,13 +431,24 @@ export default function TeacherDashboard() {
       <main className="px-4 sm:px-6 py-5 pb-[120px] max-w-7xl mx-auto">
         <GlobalAcademicForm />
 
+        {/* Holiday Banner */}
+        {holiday?.isHoliday && (
+          <div className="bg-orange-50 border-2 border-orange-200 rounded-3xl px-5 py-5 mb-4 flex items-center gap-4">
+            <span className="text-4xl">🏖️</span>
+            <div className="flex-1">
+              <p className="font-black text-orange-700 text-lg">يوم إجازة</p>
+              <p className="text-sm text-orange-500">{holiday.label || 'إجازة رسمية'} — لا حاجة لتسجيل حضور أو غياب اليوم</p>
+            </div>
+          </div>
+        )}
+
         {/* Subjects Panel — scoped to the currently-active class */}
         <SubjectsPanel showToast={showToast} currentClass={currentClass} />
 
         {/* Attendance Quick Toggle Banner */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-3">
+        <div className={`bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-3 transition-opacity ${holiday?.isHoliday ? 'opacity-40 pointer-events-none' : ''}`}>
           <p className="text-xs font-bold text-gray-500 mb-3 flex items-center gap-1.5">
-            📋 سجّل الحضور والغياب بضغطة واحدة
+            {holiday?.isHoliday ? '🏖️ الحضور معطّل في أيام الإجازة' : '📋 سجّل الحضور والغياب بضغطة واحدة'}
           </p>
           <div className="flex flex-wrap gap-2">
             {students.map((s) => (
