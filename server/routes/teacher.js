@@ -326,5 +326,75 @@ router.post('/daily-subjects', ...guard, async (req, res) => {
   } catch (err) { res.status(500).json({ error: 'خطأ في تحديث مادة اليوم' }); }
 });
 
+// ── GET /api/teacher/students/:id/report-replies?date=YYYY-MM-DD ─
+// Teacher sees all replies for a student's daily report
+router.get('/students/:id/report-replies', ...guard, async (req, res) => {
+  try {
+    const date = req.query.date || new Date().toISOString().slice(0, 10);
+    const { rows } = await db.query(
+      `SELECT * FROM daily_report_replies
+       WHERE student_id = $1 AND report_date = $2::date
+       ORDER BY created_at ASC`,
+      [req.params.id, date]
+    );
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: 'خطأ في جلب الردود' }); }
+});
+
+// ── POST /api/teacher/students/:id/report-replies ────────────
+// Teacher sends or adds a reply to the daily report note thread
+router.post('/students/:id/report-replies', ...guard, async (req, res) => {
+  try {
+    const { text, date } = req.body;
+    if (!text || !text.trim()) return res.status(400).json({ error: 'نص الرد مطلوب' });
+    const reportDate = date || new Date().toISOString().slice(0, 10);
+    const { rows } = await db.query(
+      `INSERT INTO daily_report_replies (report_date, student_id, from_role, from_name, text)
+       VALUES ($1::date, $2, 'teacher', $3, $4) RETURNING *`,
+      [reportDate, req.params.id, req.user.name, text.trim()]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'خطأ في إرسال الرد' });
+  }
+});
+
+// ── GET /api/teacher/messages ────────────────────────────────
+// Teacher sees messages exchanged with manager
+router.get('/messages', ...guard, async (req, res) => {
+  try {
+    const { teacherId } = req.user;
+    if (!teacherId) return res.status(404).json({ error: 'لم يتم ربط معلمة بهذا الحساب' });
+    const { rows } = await db.query(
+      `SELECT * FROM messages
+       WHERE conversation_type = 'manager_teacher' AND participant_id = $1
+       ORDER BY created_at ASC`,
+      [String(teacherId)]
+    );
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: 'خطأ في جلب الرسائل' }); }
+});
+
+// ── POST /api/teacher/messages ──────────────────────────────
+// Teacher replies to manager
+router.post('/messages', ...guard, async (req, res) => {
+  try {
+    const { teacherId } = req.user;
+    if (!teacherId) return res.status(404).json({ error: 'لم يتم ربط معلمة بهذا الحساب' });
+    const { text } = req.body;
+    if (!text || !text.trim()) return res.status(400).json({ error: 'نص الرسالة مطلوب' });
+    const { rows } = await db.query(
+      `INSERT INTO messages (conversation_type, participant_id, from_role, from_name, text, read_by_manager)
+       VALUES ('manager_teacher', $1, 'teacher', $2, $3, false) RETURNING *`,
+      [String(teacherId), req.user.name, text.trim()]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'خطأ في إرسال الرسالة' });
+  }
+});
+
 module.exports = router;
 

@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import {
-  Users, ChevronDown, UsersRound, CheckCircle2, XCircle, LogOut, KeyRound
+  Users, ChevronDown, UsersRound, CheckCircle2, XCircle, LogOut, KeyRound, MessageCircle
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { ChangePasswordModal } from '../../pages/LoginPage';
+import TeacherMessagesPage from './TeacherMessagesPage';
 
 // =============================================
 // TEACHER HEADER
@@ -12,6 +13,7 @@ import { ChangePasswordModal } from '../../pages/LoginPage';
 export function TeacherHeader({ currentClass, onClassChange, attendance, allClasses }) {
   const [open, setOpen] = useState(false);
   const [showChangePw, setShowChangePw] = useState(false);
+  const [showMessages, setShowMessages] = useState(false);
   const { present, total } = attendance;
   const pct = Math.round((present / total) * 100) || 0;
   const { user, logout } = useAuth();
@@ -76,6 +78,15 @@ export function TeacherHeader({ currentClass, onClassChange, attendance, allClas
             )}
           </div>
 
+          {/* Manager Messages */}
+          <button
+            onClick={() => setShowMessages(true)}
+            className="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-2xl px-3 py-2 transition-all"
+            title="رسائل المدير"
+          >
+            <MessageCircle size={15} className="text-purple-200" />
+          </button>
+
           {/* Change Password */}
           <button
             onClick={() => setShowChangePw(true)}
@@ -93,6 +104,19 @@ export function TeacherHeader({ currentClass, onClassChange, attendance, allClas
       </div>
     </header>
     {showChangePw && <ChangePasswordModal onClose={() => setShowChangePw(false)} />}
+    {showMessages && (
+      <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowMessages(false)}>
+        <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-md max-h-[85vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 flex-shrink-0">
+            <p className="font-bold text-gray-800 text-sm">رسائل الإدارة</p>
+            <button onClick={() => setShowMessages(false)} className="text-gray-400 hover:text-gray-600 text-lg font-bold">×</button>
+          </div>
+          <div className="flex-1 overflow-hidden">
+            <TeacherMessagesPage />
+          </div>
+        </div>
+      </div>
+    )}
     </>
   );
 }

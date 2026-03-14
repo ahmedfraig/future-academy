@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  LayoutDashboard, Users, School, GraduationCap, Link2, Megaphone, LogOut, ChevronLeft, KeyRound
+  LayoutDashboard, Users, School, GraduationCap, Link2, Megaphone, LogOut, ChevronLeft, KeyRound, ClipboardList, MessageSquare
 } from 'lucide-react';
 import { nurseryInfo } from '../../data/dummyData';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { ChangePasswordModal } from '../../pages/LoginPage';
+import api from '../../services/api';
 
 const navItems = [
   { id: 'overview',       icon: LayoutDashboard, label: 'لوحة المعلومات',  color: 'text-violet-600 bg-violet-100' },
@@ -14,13 +15,32 @@ const navItems = [
   { id: 'teachers',       icon: GraduationCap,   label: 'إدارة المعلمات',  color: 'text-pink-600 bg-pink-100'   },
   { id: 'assignments',    icon: Link2,           label: 'التعيينات',       color: 'text-amber-600 bg-amber-100' },
   { id: 'announcements',  icon: Megaphone,       label: 'الإعلانات',       color: 'text-red-600 bg-red-100'     },
+  { id: 'reports',        icon: ClipboardList,   label: 'التقارير اليومية',   color: 'text-sky-600 bg-sky-100'     },
+  { id: 'messages',       icon: MessageSquare,   label: 'الرسائل',           color: 'text-indigo-600 bg-indigo-100' },
 ];
 
 export default function ManagerSidebar({ active, onNavigate }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [showChangePw, setShowChangePw] = useState(false);
+  const [unread, setUnread] = useState(0);
   const handleLogout = () => { logout(); navigate('/login'); };
+
+  useEffect(() => {
+    const fetchUnread = () => {
+      api.get('/manager/notifications').then(({ data }) => setUnread(data.unread || 0)).catch(() => {});
+    };
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 30000); // refresh every 30s
+    return () => clearInterval(interval);
+  }, []);
+
+  // Clear badge when navigating to messages
+  const handleNavigate = (id) => {
+    if (id === 'messages') setUnread(0);
+    onNavigate(id);
+  };
+
   return (
     <aside className="flex flex-col w-64 min-h-screen bg-white border-l border-gray-100 shadow-sm flex-shrink-0">
       {/* Branding */}
@@ -49,15 +69,15 @@ export default function ManagerSidebar({ active, onNavigate }) {
         </div>
       </div>
 
-      {/* Nav Items */}
       <nav className="flex flex-col gap-1 px-3 py-4 flex-1">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = active === item.id;
+          const showBadge = item.id === 'messages' && unread > 0;
           return (
             <button
               key={item.id}
-              onClick={() => onNavigate(item.id)}
+              onClick={() => handleNavigate(item.id)}
               className={`flex items-center gap-3 px-3 py-3 rounded-2xl transition-all duration-200 text-right w-full group ${
                 isActive
                   ? 'bg-violet-600 text-white shadow-md shadow-violet-200'
@@ -72,7 +92,12 @@ export default function ManagerSidebar({ active, onNavigate }) {
               <span className={`text-sm font-bold flex-1 text-right ${isActive ? 'text-white' : 'text-gray-700'}`}>
                 {item.label}
               </span>
-              {isActive && <ChevronLeft size={14} className="text-white/60" />}
+              {showBadge && (
+                <span className="w-5 h-5 bg-red-500 text-white text-xs font-black rounded-full flex items-center justify-center">
+                  {unread > 9 ? '9+' : unread}
+                </span>
+              )}
+              {isActive && !showBadge && <ChevronLeft size={14} className="text-white/60" />}
             </button>
           );
         })}

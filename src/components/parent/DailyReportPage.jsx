@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   BookOpen, Utensils, Baby, Heart, Star, ChevronDown, ChevronUp,
-  Clock, ChevronRight, ChevronLeft, Timer, ClipboardList
+  Clock, ChevronRight, ChevronLeft, Timer, ClipboardList, MessageSquare, Send, Reply
 } from 'lucide-react';
 import api from '../../services/api';
 import LoadingState from '../ui/LoadingState';
@@ -90,33 +90,26 @@ const MOOD_COLORS = {
 function safeParseOverall(val) {
   if (!val) return null;
   if (BEHAVIOR_LABELS.includes(val)) return val;
-  // val might be a nested JSON string — try to extract real overall from it
   try {
     const inner = JSON.parse(val);
     if (inner && typeof inner === 'object' && inner.overall) {
       return BEHAVIOR_LABELS.includes(inner.overall) ? inner.overall : null;
     }
   } catch (_) {}
-  return null; // unknown/corrupted — hide it
+  return null;
 }
 
 function BehaviorSection({ behavior }) {
   if (!behavior) return <p className="text-sm text-gray-400">لا توجد بيانات سلوك</p>;
-
-  // behavior is stored as TEXT in DB — parse JSON string if needed
   let parsed = behavior;
   if (typeof behavior === 'string') {
-    try { parsed = JSON.parse(behavior); } catch (_) { /* treat as plain mood string */ }
+    try { parsed = JSON.parse(behavior); } catch (_) {}
   }
-
-  // Plain mood string (old format)
   if (typeof parsed === 'string') {
     const label = BEHAVIOR_LABELS.includes(parsed) ? parsed : null;
     if (!label) return <p className="text-sm text-gray-400">لا توجد بيانات سلوك</p>;
     return <span className={`text-sm font-bold px-4 py-1.5 rounded-xl ${MOOD_COLORS[label]}`}>{label}</span>;
   }
-
-  // Object {withPeers, withTeachers, overall}
   const overall = safeParseOverall(parsed.overall);
   return (
     <div className="flex flex-col gap-3">
@@ -140,10 +133,9 @@ function BehaviorSection({ behavior }) {
 
 function formatShortDate(dateStr) {
   if (!dateStr) return '';
-  // Parse as LOCAL date (not UTC) to avoid off-by-one-day in UTC+ timezones
-  const raw = String(dateStr).slice(0, 10); // 'YYYY-MM-DD'
+  const raw = String(dateStr).slice(0, 10);
   const [y, m, d] = raw.split('-').map(Number);
-  const dt   = new Date(y, m - 1, d);       // local midnight
+  const dt   = new Date(y, m - 1, d);
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const diff  = today - dt;
   if (diff < 86400000)  return 'اليوم';
@@ -202,7 +194,6 @@ function SubjectsSection({ subjects }) {
               !s.lesson_topic && <p className="text-xs text-gray-400 mt-1">لا يوجد واجب</p>
             )}
           </div>
-
         );
       })}
       {notTaught.length > 0 && (
@@ -218,14 +209,121 @@ function SubjectsSection({ subjects }) {
   );
 }
 
+// ── DAILY NOTE REPLY THREAD ────────────────────────────────────
+function ReplyThread({ dateStr, hasNote }) {
+  const [replies, setReplies]   = useState([]);
+  const [text, setText]         = useState('');
+  const [sending, setSending]   = useState(false);
+  const [loading, setLoading]   = useState(false);
+  const [open, setOpen]         = useState(false);
+  const [toast, setToast]       = useState('');
+
+  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 2500); };
+
+  const fetchReplies = async () => {
+    if (!dateStr) return;
+    setLoading(true);
+    try {
+      const { data } = await api.get('/parent/report-replies', { params: { date: dateStr } });
+      setReplies(data);
+    } catch {}
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => {
+    if (open) fetchReplies();
+  }, [open, dateStr]);
+
+  const handleSend = async () => {
+    if (!text.trim()) return;
+    setSending(true);
+    try {
+      const { data } = await api.post('/parent/report-replies', { text: text.trim(), date: dateStr });
+      setReplies((prev) => [...prev, data]);
+      setText('');
+      showToast('✅ تم إرسال ردك');
+    } catch {
+      showToast('❌ فشل إرسال الرد');
+    } finally { setSending(false); }
+  };
+
+  const fmt = (ts) => ts ? new Date(ts).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }) : '';
+
+  if (!hasNote) return null;
+
+  return (
+    <div className="bg-violet-50 border border-violet-100 rounded-3xl overflow-hidden">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between px-5 py-3"
+      >
+        <div className="flex items-center gap-2">
+          <Reply size={15} className="text-violet-500" />
+          <span className="text-sm font-bold text-violet-700">
+            الرد على ملاحظة المعلمة
+            {replies.length > 0 && <span className="mr-1.5 bg-violet-500 text-white text-xs px-2 py-0.5 rounded-full">{replies.length}</span>}
+          </span>
+        </div>
+        {open ? <ChevronUp size={16} className="text-violet-400" /> : <ChevronDown size={16} className="text-violet-400" />}
+      </button>
+
+      {open && (
+        <div className="px-4 pb-4 flex flex-col gap-3">
+          {/* Existing replies */}
+          {loading ? (
+            <p className="text-xs text-gray-400 text-center py-2">جاري التحميل...</p>
+          ) : replies.length > 0 ? (
+            <div className="flex flex-col gap-2">
+              {replies.map((r) => (
+                <div key={r.id} className={`flex gap-2 ${r.from_role === 'parent' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[80%] rounded-2xl px-3 py-2 ${r.from_role === 'parent' ? 'bg-violet-500 text-white rounded-tr-sm' : 'bg-white border border-violet-100 text-gray-700 rounded-tl-sm'}`}>
+                    <p className="text-sm">{r.text}</p>
+                    <p className={`text-[10px] mt-0.5 ${r.from_role === 'parent' ? 'text-violet-200' : 'text-gray-400'}`}>
+                      {r.from_role === 'teacher' ? `المعلمة · ` : ''}{fmt(r.created_at)}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-gray-400 text-center py-1">لا توجد ردود بعد</p>
+          )}
+
+          {/* Reply box */}
+          <div className="flex gap-2 mt-1">
+            <input
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
+              placeholder="اكتب ردك على ملاحظة المعلمة..."
+              className="flex-1 bg-white border border-violet-200 rounded-2xl px-3 py-2 text-sm focus:outline-none focus:border-violet-400"
+              style={{ fontFamily: 'Cairo, sans-serif' }}
+            />
+            <button
+              onClick={handleSend}
+              disabled={!text.trim() || sending}
+              className={`w-10 rounded-2xl flex items-center justify-center flex-shrink-0 transition-all ${text.trim() && !sending ? 'bg-violet-500 text-white hover:bg-violet-600' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
+            >
+              <Send size={15} />
+            </button>
+          </div>
+        </div>
+      )}
+      {toast && (
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[300] bg-gray-900 text-white text-sm font-bold px-5 py-3 rounded-2xl shadow-lg">
+          {toast}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function DailyReportPage() {
   const [reports, setReports]         = useState([]);
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [loading, setLoading]         = useState(true);
   const [subjects, setSubjects]       = useState([]);
 
-  // Helper: extract 'YYYY-MM-DD' from a report regardless of whether
-  // report_date is a Date object, ISO string, or plain date string
   const getDateStr = (report) => String(report?.report_date || '').slice(0, 10);
 
   useEffect(() => {
@@ -233,7 +331,6 @@ export default function DailyReportPage() {
 
     api.get('/parent/reports', { params: { limit: 30 } })
       .then(({ data }) => {
-        // Ensure today's slot always exists
         const hasToday = data.some((r) => getDateStr(r) === todayStr);
         const list = hasToday ? data : [{ report_date: todayStr, present: false }, ...data];
         setReports(list);
@@ -243,7 +340,6 @@ export default function DailyReportPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Re-fetch subjects whenever the selected report date changes
   useEffect(() => {
     const currentReport = reports[selectedIdx];
     if (!currentReport) return;
@@ -310,11 +406,14 @@ export default function DailyReportPage() {
         </div>
       )}
 
-      {/* Teacher Note */}
+      {/* Teacher Note + Reply Thread */}
       {report?.note && (
-        <div className="bg-violet-50 border border-violet-100 rounded-3xl px-5 py-4">
-          <p className="text-xs font-bold text-violet-500 mb-1">📝 ملاحظة المعلمة</p>
-          <p className="text-sm text-gray-700">{report.note}</p>
+        <div className="flex flex-col gap-2">
+          <div className="bg-violet-50 border border-violet-100 rounded-3xl px-5 py-4">
+            <p className="text-xs font-bold text-violet-500 mb-1">📝 ملاحظة المعلمة</p>
+            <p className="text-sm text-gray-700">{report.note}</p>
+          </div>
+          <ReplyThread dateStr={getDateStr(report)} hasNote={!!report.note} />
         </div>
       )}
 

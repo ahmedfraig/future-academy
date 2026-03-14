@@ -6,6 +6,8 @@ import ClassesManager from './ClassesManager';
 import TeachersManager from './TeachersManager';
 import AssignmentsPage from './AssignmentsPage';
 import AnnouncementsManager from './AnnouncementsManager';
+import ManagerReportsPage from './ManagerReportsPage';
+import ManagerNotesPage from './ManagerNotesPage';
 import { Menu, X } from 'lucide-react';
 
 const PAGES = {
@@ -15,6 +17,8 @@ const PAGES = {
   teachers:      TeachersManager,
   assignments:   AssignmentsPage,
   announcements: AnnouncementsManager,
+  reports:       ManagerReportsPage,
+  messages:      ManagerNotesPage,
 };
 
 export default function ManagerDashboard() {

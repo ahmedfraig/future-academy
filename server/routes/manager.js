@@ -442,5 +442,163 @@ router.post('/students/:id/generate-reset-key', ...guard, async (req, res) => {
   }
 });
 
+// ── GET /api/manager/daily-reports ───────────────────────────
+// Returns all student daily reports (today), with class and teacher info
+router.get('/daily-reports', ...guard, async (req, res) => {
+  try {
+    const classId = req.query.classId; // optional filter
+    const dateStr = req.query.date || new Date().toISOString().slice(0, 10);
+    const { rows } = await db.query(`
+      SELECT
+        s.id, s.name, s.avatar, s.gender, s.class_id,
+        c.name AS class_name,
+        t.name AS teacher_name,
+        COALESCE(dr.present, false) AS present,
+        dr.arrival_time, dr.mood, dr.meals, dr.potty, dr.behavior,
+        COALESCE(dr.note, '') AS note,
+        dr.report_date
+      FROM students s
+      LEFT JOIN classes c ON c.id = s.class_id
+      LEFT JOIN teachers t ON t.id = c.teacher_id
+      LEFT JOIN daily_reports dr ON dr.student_id = s.id AND dr.report_date = $1::date
+      ${classId ? 'WHERE s.class_id = $2' : ''}
+      ORDER BY s.class_id, s.name
+    `, classId ? [dateStr, classId] : [dateStr]);
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'خطأ في جلب التقارير' });
+  }
+});
+
+// ── GET /api/manager/messages/parent/:studentId ──────────────
+// Get manager<->parent conversation for a specific student
+router.get('/messages/parent/:studentId', ...guard, async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT * FROM messages
+       WHERE conversation_type = 'manager_parent' AND participant_id = $1
+       ORDER BY created_at ASC`,
+      [String(req.params.studentId)]
+    );
+    // Mark all parent messages as read by manager
+    await db.query(
+      `UPDATE messages SET read_by_manager = true
+       WHERE conversation_type = 'manager_parent' AND participant_id = $1 AND from_role = 'parent'`,
+      [String(req.params.studentId)]
+    );
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: 'خطأ في جلب الرسائل' }); }
+});
+
+// ── POST /api/manager/messages/parent/:studentId ────────────
+// Manager sends a message to a parent
+router.post('/messages/parent/:studentId', ...guard, async (req, res) => {
+  try {
+    const { text } = req.body;
+    if (!text || !text.trim()) return res.status(400).json({ error: 'نص الرسالة مطلوب' });
+    const { rows } = await db.query(
+      `INSERT INTO messages (conversation_type, participant_id, from_role, from_name, text, read_by_manager)
+       VALUES ('manager_parent', $1, 'manager', 'المدير', $2, true) RETURNING *`,
+      [String(req.params.studentId), text.trim()]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'خطأ في إرسال الرسالة' });
+  }
+});
+
+// ── GET /api/manager/messages/teacher/:teacherId ────────────
+// Manager<->teacher conversation
+router.get('/messages/teacher/:teacherId', ...guard, async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT * FROM messages
+       WHERE conversation_type = 'manager_teacher' AND participant_id = $1
+       ORDER BY created_at ASC`,
+      [String(req.params.teacherId)]
+    );
+    // Mark teacher messages as read by manager
+    await db.query(
+      `UPDATE messages SET read_by_manager = true
+       WHERE conversation_type = 'manager_teacher' AND participant_id = $1 AND from_role = 'teacher'`,
+      [String(req.params.teacherId)]
+    );
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: 'خطأ في جلب الرسائل' }); }
+});
+
+// ── POST /api/manager/messages/teacher/:teacherId ───────────
+// Manager sends a message to a teacher
+router.post('/messages/teacher/:teacherId', ...guard, async (req, res) => {
+  try {
+    const { text } = req.body;
+    if (!text || !text.trim()) return res.status(400).json({ error: 'نص الرسالة مطلوب' });
+    const { rows } = await db.query(
+      `INSERT INTO messages (conversation_type, participant_id, from_role, from_name, text, read_by_manager)
+       VALUES ('manager_teacher', $1, 'manager', 'المدير', $2, true) RETURNING *`,
+      [String(req.params.teacherId), text.trim()]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'خطأ في إرسال الرسالة' });
+  }
+});
+
+// ── GET /api/manager/notifications ─────────────────────────────
+// Returns count of unread messages from parents and teachers
+router.get('/notifications', ...guard, async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT COUNT(*) FROM messages WHERE from_role != 'manager' AND read_by_manager = false`
+    );
+    res.json({ unread: parseInt(rows[0].count) });
+  } catch (err) { res.status(500).json({ error: 'خطأ في جلب الإشعارات' }); }
+});
+
+// ── GET /api/manager/messages/parent-list ───────────────────
+// List of parent conversations with last message + student name
+router.get('/messages/parent-list', ...guard, async (req, res) => {
+  try {
+    const { rows } = await db.query(`
+      SELECT
+        m.participant_id AS student_id,
+        s.name           AS student_name,
+        s.avatar         AS student_avatar,
+        s.class_id,
+        MAX(m.created_at) AS last_message_at,
+        SUM(CASE WHEN m.from_role = 'parent' AND m.read_by_manager = false THEN 1 ELSE 0 END) AS unread_count
+      FROM messages m
+      LEFT JOIN students s ON s.id = m.participant_id::integer
+      WHERE m.conversation_type = 'manager_parent'
+      GROUP BY m.participant_id, s.name, s.avatar, s.class_id
+      ORDER BY last_message_at DESC
+    `);
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: 'خطأ في جلب المحادثات' }); }
+});
+
+// ── GET /api/manager/messages/teacher-list ──────────────────
+// List of teacher conversations with last message + teacher name
+router.get('/messages/teacher-list', ...guard, async (req, res) => {
+  try {
+    const { rows } = await db.query(`
+      SELECT
+        m.participant_id AS teacher_id,
+        t.name           AS teacher_name,
+        MAX(m.created_at) AS last_message_at,
+        SUM(CASE WHEN m.from_role = 'teacher' AND m.read_by_manager = false THEN 1 ELSE 0 END) AS unread_count
+      FROM messages m
+      LEFT JOIN teachers t ON t.id = m.participant_id::integer
+      WHERE m.conversation_type = 'manager_teacher'
+      GROUP BY m.participant_id, t.name
+      ORDER BY last_message_at DESC
+    `);
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: 'خطأ في جلب المحادثات' }); }
+});
+
 module.exports = router;
 

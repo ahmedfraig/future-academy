@@ -223,5 +223,79 @@ router.get('/daily-subjects', ...guard, async (req, res) => {
   } catch (err) { res.status(500).json({ error: 'خطأ في جلب مواد اليوم' }); }
 });
 
+// ── GET /api/parent/report-replies?date=YYYY-MM-DD ──────────
+// Get all replies on the daily report note for a given date
+router.get('/report-replies', ...guard, async (req, res) => {
+  try {
+    const { childId } = req.user;
+    if (!childId) return res.status(404).json({ error: 'لم يتم ربط طفل بهذا الحساب' });
+    const date = req.query.date || new Date().toISOString().slice(0, 10);
+    const { rows } = await db.query(
+      `SELECT * FROM daily_report_replies
+       WHERE student_id = $1 AND report_date = $2::date
+       ORDER BY created_at ASC`,
+      [childId, date]
+    );
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: 'خطأ في جلب الردود' }); }
+});
+
+// ── POST /api/parent/report-replies ──────────────────────────
+// Parent sends a reply to the teacher's daily report note
+router.post('/report-replies', ...guard, async (req, res) => {
+  try {
+    const { childId } = req.user;
+    if (!childId) return res.status(404).json({ error: 'لم يتم ربط طفل بهذا الحساب' });
+    const { text, date } = req.body;
+    if (!text || !text.trim()) return res.status(400).json({ error: 'نص الرد مطلوب' });
+    const reportDate = date || new Date().toISOString().slice(0, 10);
+    const { rows } = await db.query(
+      `INSERT INTO daily_report_replies (report_date, student_id, from_role, from_name, text)
+       VALUES ($1::date, $2, 'parent', $3, $4) RETURNING *`,
+      [reportDate, childId, req.user.name, text.trim()]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'خطأ في إرسال الرد' });
+  }
+});
+
+// ── GET /api/parent/messages ──────────────────────────────────
+// Get all messages between this parent and the manager
+router.get('/messages', ...guard, async (req, res) => {
+  try {
+    const { childId } = req.user;
+    if (!childId) return res.status(404).json({ error: 'لم يتم ربط طفل بهذا الحساب' });
+    const { rows } = await db.query(
+      `SELECT * FROM messages
+       WHERE conversation_type = 'manager_parent' AND participant_id = $1
+       ORDER BY created_at ASC`,
+      [String(childId)]
+    );
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: 'خطأ في جلب الرسائل' }); }
+});
+
+// ── POST /api/parent/messages ─────────────────────────────────
+// Parent sends a message to manager
+router.post('/messages', ...guard, async (req, res) => {
+  try {
+    const { childId } = req.user;
+    if (!childId) return res.status(404).json({ error: 'لم يتم ربط طفل بهذا الحساب' });
+    const { text } = req.body;
+    if (!text || !text.trim()) return res.status(400).json({ error: 'نص الرسالة مطلوب' });
+    const { rows } = await db.query(
+      `INSERT INTO messages (conversation_type, participant_id, from_role, from_name, text, read_by_manager)
+       VALUES ('manager_parent', $1, 'parent', $2, $3, false) RETURNING *`,
+      [String(childId), req.user.name, text.trim()]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'خطأ في إرسال الرسالة' });
+  }
+});
+
 module.exports = router;
 
