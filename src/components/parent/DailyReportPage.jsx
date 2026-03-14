@@ -323,6 +323,7 @@ export default function DailyReportPage() {
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [loading, setLoading]         = useState(true);
   const [subjects, setSubjects]       = useState([]);
+  const [holiday, setHoliday]         = useState(null); // { isHoliday, label }
 
   const getDateStr = (report) => String(report?.report_date || '').slice(0, 10);
 
@@ -347,6 +348,10 @@ export default function DailyReportPage() {
     api.get('/parent/daily-subjects', { params: { date: dateStr } })
       .then(({ data }) => setSubjects(data))
       .catch(() => {});
+    // Check if this date is a holiday
+    api.get('/manager/holidays/check', { params: { date: dateStr } })
+      .then(({ data }) => setHoliday(data))
+      .catch(() => setHoliday(null));
   }, [selectedIdx, reports]);
 
   const prev = () => setSelectedIdx((i) => Math.min(i + 1, reports.length - 1));
@@ -392,6 +397,17 @@ export default function DailyReportPage() {
         <p className="text-center text-xs text-gray-400 mt-2">{formatLongDate(report?.report_date)}</p>
       </div>
 
+      {/* Holiday Banner */}
+      {holiday?.isHoliday && (
+        <div className="bg-orange-50 border border-orange-200 rounded-3xl px-5 py-4 flex items-center gap-4">
+          <span className="text-3xl">🏖️</span>
+          <div>
+            <p className="font-black text-orange-700 text-base">يوم إجازة</p>
+            <p className="text-xs text-orange-500 mt-0.5">{holiday.label || 'إجازة رسمية'} — الغياب في هذا اليوم لا يُحتسب</p>
+          </div>
+        </div>
+      )}
+
       {/* Arrival Time */}
       {report?.arrival_time && (
         <div className="bg-sky-50 border border-sky-100 rounded-3xl px-5 py-3 flex items-center gap-3">
@@ -400,8 +416,14 @@ export default function DailyReportPage() {
             <p className="text-xs text-sky-500 font-bold">وقت الوصول</p>
             <p className="text-base font-black text-gray-800" dir="ltr">{report.arrival_time}</p>
           </div>
-          <span className={`mr-auto text-sm font-bold px-3 py-1.5 rounded-xl ${report.present ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`}>
-            {report.present ? '✅ حاضر' : '❌ غائب'}
+          <span className={`mr-auto text-sm font-bold px-3 py-1.5 rounded-xl ${
+            report.present
+              ? 'bg-emerald-100 text-emerald-700'
+              : holiday?.isHoliday
+              ? 'bg-orange-100 text-orange-600'
+              : 'bg-red-100 text-red-600'
+          }`}>
+            {report.present ? '✅ حاضر' : holiday?.isHoliday ? '🏖️ إجازة' : '❌ غائب'}
           </span>
         </div>
       )}

@@ -45,7 +45,7 @@ const mealLabels = {
   none: { label: 'لم يأكل',   color: 'text-red-600 bg-red-50',       dot: 'bg-red-400'     },
 };
 
-function StudentReportCard({ student }) {
+function StudentReportCard({ student, isHoliday }) {
   const [expanded, setExpanded] = useState(false);
   const [notes, setNotes]       = useState([]);
   const [notesLoaded, setNotesLoaded] = useState(false);
@@ -83,6 +83,8 @@ function StudentReportCard({ student }) {
         <div className="flex items-center gap-2">
           {student.present ? (
             <span className="text-xs font-bold bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-xl">✅ حاضر</span>
+          ) : isHoliday ? (
+            <span className="text-xs font-bold bg-orange-100 text-orange-600 px-2.5 py-1 rounded-xl">🏖️ إجازة</span>
           ) : (
             <span className="text-xs font-bold bg-red-100 text-red-600 px-2.5 py-1 rounded-xl">❌ غائب</span>
           )}
@@ -192,18 +194,21 @@ export default function ManagerReportsPage() {
   const [classFilter, setClassFilter] = useState('');
   const [search, setSearch]     = useState('');
   const [date, setDate]         = useState(new Date().toISOString().slice(0, 10));
+  const [holiday, setHoliday]   = useState(null); // { isHoliday, label }
 
   const fetchData = async () => {
     setLoading(true);
     try {
       const params = { date };
       if (classFilter) params.classId = classFilter;
-      const [stuRes, clsRes] = await Promise.all([
+      const [stuRes, clsRes, holRes] = await Promise.all([
         api.get('/manager/daily-reports', { params }),
         api.get('/manager/classes'),
+        api.get('/manager/holidays/check', { params: { date } }),
       ]);
       setStudents(stuRes.data);
       setClasses(clsRes.data);
+      setHoliday(holRes.data);
     } catch {}
     finally { setLoading(false); }
   };
@@ -223,6 +228,17 @@ export default function ManagerReportsPage() {
         <h1 className="text-xl font-black text-gray-800">التقارير اليومية 📊</h1>
         <p className="text-sm text-gray-500 mt-0.5">{fmtDate(date)}</p>
       </div>
+
+      {/* Holiday banner */}
+      {holiday?.isHoliday && (
+        <div className="bg-orange-50 border border-orange-200 rounded-2xl px-4 py-3 flex items-center gap-3">
+          <span className="text-2xl">🏖️</span>
+          <div>
+            <p className="font-bold text-orange-700 text-sm">يوم إجازة</p>
+            <p className="text-xs text-orange-500">{holiday.label || 'إجازة رسمية'} — الغياب في هذا اليوم لا يُحتسب</p>
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col sm:flex-row gap-3">
@@ -272,7 +288,7 @@ export default function ManagerReportsPage() {
         {[
           { label: 'إجمالي الطلاب', value: filtered.length, icon: '👥', color: 'bg-blue-50 text-blue-700' },
           { label: 'الحاضرون', value: presentCount, icon: '✅', color: 'bg-emerald-50 text-emerald-700' },
-          { label: 'الغائبون', value: filtered.length - presentCount, icon: '❌', color: 'bg-red-50 text-red-600' },
+          { label: holiday?.isHoliday ? 'مفترض غيابهم' : 'الغائبون', value: filtered.length - presentCount, icon: holiday?.isHoliday ? '🏖️' : '❌', color: holiday?.isHoliday ? 'bg-orange-50 text-orange-600' : 'bg-red-50 text-red-600' },
         ].map((s) => (
           <div key={s.label} className={`rounded-2xl p-3 text-center ${s.color}`}>
             <p className="text-2xl mb-0.5">{s.icon}</p>
@@ -296,7 +312,7 @@ export default function ManagerReportsPage() {
       ) : (
         <div className="flex flex-col gap-3">
           {filtered.map((s) => (
-            <StudentReportCard key={s.id} student={s} />
+            <StudentReportCard key={s.id} student={s} isHoliday={holiday?.isHoliday} />
           ))}
         </div>
       )}

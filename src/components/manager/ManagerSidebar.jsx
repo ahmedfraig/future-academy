@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  LayoutDashboard, Users, School, GraduationCap, Link2, Megaphone, LogOut, ChevronLeft, KeyRound, ClipboardList, MessageSquare
+  LayoutDashboard, Users, School, GraduationCap, Link2, Megaphone, LogOut, ChevronLeft, KeyRound, ClipboardList, MessageSquare, CalendarOff
 } from 'lucide-react';
 import { nurseryInfo } from '../../data/dummyData';
 import { useAuth } from '../../context/AuthContext';
@@ -17,6 +17,7 @@ const navItems = [
   { id: 'announcements',  icon: Megaphone,       label: 'الإعلانات',       color: 'text-red-600 bg-red-100'     },
   { id: 'reports',        icon: ClipboardList,   label: 'التقارير اليومية',   color: 'text-sky-600 bg-sky-100'     },
   { id: 'messages',       icon: MessageSquare,   label: 'الرسائل',           color: 'text-indigo-600 bg-indigo-100' },
+  { id: 'holidays',       icon: CalendarOff,     label: 'أيام الإجازة',      color: 'text-orange-600 bg-orange-100' },
 ];
 
 export default function ManagerSidebar({ active, onNavigate }) {

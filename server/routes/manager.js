@@ -615,5 +615,73 @@ router.get('/messages/teacher-list', ...guard, async (req, res) => {
   } catch (err) { res.status(500).json({ error: 'خطأ في جلب المحادثات' }); }
 });
 
-module.exports = router;
+// ── GET /api/manager/holidays ─────────────────────────────────
+router.get('/holidays', ...guard, async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT * FROM nursery_holidays ORDER BY type DESC, day_of_week ASC, date ASC`
+    );
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: 'خطأ في جلب أيام الإجازة' }); }
+});
 
+// ── POST /api/manager/holidays ────────────────────────────────
+router.post('/holidays', ...guard, async (req, res) => {
+  try {
+    const { type, day_of_week, date, label } = req.body;
+    if (!type || !['weekly', 'special'].includes(type))
+      return res.status(400).json({ error: 'نوع الإجازة غير صحيح' });
+    if (type === 'weekly' && (day_of_week === undefined || day_of_week === null))
+      return res.status(400).json({ error: 'يوم الأسبوع مطلوب' });
+    if (type === 'special' && !date)
+      return res.status(400).json({ error: 'التاريخ مطلوب' });
+
+    // For weekly: prevent duplicates
+    if (type === 'weekly') {
+      const { rows: existing } = await db.query(
+        `SELECT id FROM nursery_holidays WHERE type = 'weekly' AND day_of_week = $1`,
+        [day_of_week]
+      );
+      if (existing.length > 0) return res.status(409).json({ error: 'هذا اليوم محدد بالفعل' });
+    }
+
+    const { rows } = await db.query(
+      `INSERT INTO nursery_holidays (type, day_of_week, date, label)
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [type, type === 'weekly' ? day_of_week : null, type === 'special' ? date : null, label || '']
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'خطأ في إضافة الإجازة' });
+  }
+});
+
+// ── DELETE /api/manager/holidays/:id ─────────────────────────
+router.delete('/holidays/:id', ...guard, async (req, res) => {
+  try {
+    await db.query(`DELETE FROM nursery_holidays WHERE id = $1`, [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: 'خطأ في حذف الإجازة' }); }
+});
+
+// ── GET /api/manager/holidays/check?date=YYYY-MM-DD ───────────
+// Public-ish: check if a specific date is a holiday (used by parent/teacher)
+router.get('/holidays/check', ...guard, async (req, res) => {
+  try {
+    const date = req.query.date;
+    if (!date) return res.json({ isHoliday: false });
+    const d = new Date(date);
+    const dow = d.getDay(); // 0=Sun…6=Sat
+    const { rows } = await db.query(
+      `SELECT id, label FROM nursery_holidays
+       WHERE (type = 'weekly' AND day_of_week = $1)
+          OR (type = 'special' AND date = $2::date)
+       LIMIT 1`,
+      [dow, date]
+    );
+    res.json({ isHoliday: rows.length > 0, label: rows[0]?.label || '' });
+  } catch (err) { res.status(500).json({ error: 'خطأ في الفحص' }); }
+});
+
+module.exports = router;
