@@ -15,6 +15,26 @@ const upsertReport = (client, studentId, fields) => client.query(
   [studentId, ...Object.values(fields)]
 );
 
+// ── GET /api/teacher/holidays/check?date=YYYY-MM-DD ───────────
+router.get('/holidays/check', ...guard, async (req, res) => {
+  try {
+    const date = req.query.date;
+    if (!date) return res.json({ isHoliday: false, label: '' });
+    const d = new Date(date);
+    const dow = d.getDay();
+    const { rows } = await db.query(
+      `SELECT label FROM nursery_holidays
+       WHERE (type = 'weekly' AND day_of_week = $1)
+          OR (type = 'special' AND date = $2::date)
+       LIMIT 1`,
+      [dow, date]
+    );
+    res.json({ isHoliday: rows.length > 0, label: rows[0]?.label || '' });
+  } catch (err) {
+    res.json({ isHoliday: false, label: '' }); // fail open
+  }
+});
+
 // ── GET /api/teacher/notifications ──────────────────────────────
 // Returns count of unread messages from manager + parent daily-report replies
 router.get('/notifications', ...guard, async (req, res) => {

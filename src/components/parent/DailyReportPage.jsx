@@ -349,7 +349,7 @@ export default function DailyReportPage() {
       .then(({ data }) => setSubjects(data))
       .catch(() => {});
     // Check if this date is a holiday
-    api.get('/manager/holidays/check', { params: { date: dateStr } })
+    api.get('/parent/holidays/check', { params: { date: dateStr } })
       .then(({ data }) => setHoliday(data))
       .catch(() => setHoliday(null));
   }, [selectedIdx, reports]);

@@ -344,7 +344,7 @@ export default function TeacherDashboard() {
   // Check if today is a holiday
   useEffect(() => {
     const today = new Date().toISOString().slice(0, 10);
-    api.get('/manager/holidays/check', { params: { date: today } })
+    api.get('/teacher/holidays/check', { params: { date: today } })
       .then(({ data }) => setHoliday(data))
       .catch(() => {});
   }, []);
